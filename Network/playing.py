@@ -5,27 +5,35 @@ Once a model is learned, use this to play it.
 import carmunk
 import numpy as np
 from nn import neural_net
+import tensorflow as tf
 
 NUM_SENSORS = 3
 
 
-def play(model):
+def play(session, state, prediction):
+
+    saver = tf.train.Saver()
+    saver.restore(session, "tensorData/model.ckpt-10000.data-00000-of-00001")
 
     car_distance = 0
     game_state = carmunk.GameState()
 
     # Do nothing to get initial.
-    _, state = game_state.frame_step((2))
+    _, gameState = game_state.frame_step((2))
 
     # Move.
     while True:
         car_distance += 1
 
+        feed_dict = {
+            state: gameState
+        }
+
         # Choose action.
-        action = (np.argmax(model.predict(state, batch_size=1)))
+        action = np.argmax(session.run([prediction], feed_dict=feed_dict))
 
         # Take action.
-        _, state = game_state.frame_step(action)
+        _, gameState = game_state.frame_step(action)
 
         # Tell us something.
         if car_distance % 1000 == 0:
@@ -33,6 +41,6 @@ def play(model):
 
 
 if __name__ == "__main__":
-    saved_model = 'saved-models/164-150-100-50000-25000.h5'
-    model = neural_net(NUM_SENSORS, [164, 150], saved_model)
-    play(model)
+    session, update, prediction, state, input, labels = neural_net(NUM_SENSORS, [164, 150])
+
+    play(session, state, prediction)

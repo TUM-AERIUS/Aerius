@@ -1,66 +1,51 @@
-"""
-The design of this comes from here:
-http://outlace.com/Reinforcement-Learning-Part-3/
-"""
-
-from keras.models import Sequential
-from keras.layers.core import Dense, Activation, Dropout
-from keras.optimizers import RMSprop
-from keras.layers.recurrent import LSTM
-from keras.callbacks import Callback
-
-# Adding this per a suggestion by Tim Kelch.
-# https://medium.com/@trkelch/this-post-is-great-possibly-the-best-tutorial-explanation-ive-found-thus-far-cf78886b5378#.w473ywtbw
 import tensorflow as tf
-tf.python.control_flow_ops = tf
 
+batch_size = 100
 
-class LossHistory(Callback):
-    def on_train_begin(self, logs={}):
-        self.losses = []
+def neural_net(num_sensors, params):
 
-    def on_batch_end(self, batch, logs={}):
-        self.losses.append(logs.get('loss'))
+    # setting up the environment
 
+    tf.reset_default_graph()
 
-def neural_net(num_sensors, params, load=''):
-    model = Sequential()
+    # building the graph
 
-    # First layer.
-    model.add(Dense(
-        params[0], init='lecun_uniform', input_shape=(num_sensors,)
-    ))
-    model.add(Activation('relu'))
-    model.add(Dropout(0.2))
+    input = tf.placeholder(shape=[batch_size, num_sensors], dtype=tf.float32)
+    W1 = tf.Variable(tf.random_uniform([num_sensors, params[0]], 0, 0.01), dtype=tf.float32)
+    layer1 = tf.nn.relu(tf.matmul(input, W1))
+    W2 = tf.Variable(tf.random_uniform([params[0], params[1]], 0, 0.01), dtype=tf.float32)
+    layer2 = tf.nn.relu(tf.matmul(layer1, W2))
+    W3 = tf.Variable(tf.random_uniform([params[1], 3], 0, 0.01), dtype=tf.float32)
+    logits = tf.nn.sigmoid(tf.matmul(layer2, W3))
 
-    # Second layer.
-    model.add(Dense(params[1], init='lecun_uniform'))
-    model.add(Activation('relu'))
-    model.add(Dropout(0.2))
+    # calculating loss
 
-    # Output layer.
-    model.add(Dense(3, init='lecun_uniform'))
-    model.add(Activation('linear'))
+    labels = tf.placeholder(shape=[batch_size, 3], dtype=tf.float32)
+    loss = tf.reduce_mean(
+        tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)
+    )
 
-    rms = RMSprop()
-    model.compile(loss='mse', optimizer=rms)
+    # training
 
-    if load:
-        model.load_weights(load)
+    trainer = tf.train.AdamOptimizer(learning_rate=0.0001)
+    update = trainer.minimize(loss)
 
-    return model
+    # prediction
 
+    state = tf.placeholder(shape=[None, num_sensors], dtype=tf.float32)
+    pW1 = tf.Variable(tf.random_uniform([num_sensors, params[0]], 0, 0.01), dtype=tf.float32)
+    player1 = tf.nn.relu(tf.matmul(state, pW1))
+    pW2 = tf.Variable(tf.random_uniform([params[0], params[1]], 0, 0.01), dtype=tf.float32)
+    player2 = tf.nn.relu(tf.matmul(player1, pW2))
+    pW3 = tf.Variable(tf.random_uniform([params[1], 3], 0, 0.01), dtype=tf.float32)
+    prediction = tf.nn.sigmoid(tf.matmul(player2, pW3))
 
-def lstm_net(num_sensors, load=False):
-    model = Sequential()
-    model.add(LSTM(
-        output_dim=512, input_dim=num_sensors, return_sequences=True
-    ))
-    model.add(Dropout(0.2))
-    model.add(LSTM(output_dim=512, input_dim=512, return_sequences=False))
-    model.add(Dropout(0.2))
-    model.add(Dense(output_dim=3, input_dim=512))
-    model.add(Activation("linear"))
-    model.compile(loss="mean_squared_error", optimizer="rmsprop")
+    # initialize session
 
-    return model
+    init = tf.global_variables_initializer()
+
+    session = tf.Session()
+
+    session.run(init)
+
+    return session, update, prediction, state, input, labels
