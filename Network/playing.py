@@ -13,7 +13,7 @@ NUM_SENSORS = 3
 def play(session, state, prediction):
 
     saver = tf.train.Saver()
-    saver.restore(session, "tensorData/model.ckpt-10000.data-00000-of-00001")
+    saver.restore(session, tf.train.latest_checkpoint("tensorData/"))
 
     car_distance = 0
     game_state = carmunk.GameState()

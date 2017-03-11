@@ -25,8 +25,6 @@ def train_net(session, update, predict, state, input, labels, params):
     :return:
     """
 
-    filename = params_to_filename(params)
-
     observe = 1000  # Number of frames to observe before training.
     epsilon = 1
     train_frames = 1000000  # Number of frames to play.
@@ -125,10 +123,9 @@ def train_net(session, update, predict, state, input, labels, params):
             start_time = timeit.default_timer()
 
         # Save the model every 10,000 frames.
-        if t % 10000 == 0:
-            checkpoint_file = os.path.join(save_dir, 'model.ckpt')
-            saver.save(session, "tensorDate/model.ckpt")
-            print("Saving model %s - %d" % (filename, t))
+        if t % 5000 == 0:
+            saver.save(session, "/Users/yuriy/Documents/Projects/Aerius/Network/tensorData/model.ckpt")
+            print("Saving model")
 
 
 def process_minibatch(session, minibatch, predict, state):
@@ -171,11 +168,6 @@ def process_minibatch(session, minibatch, predict, state):
     y_train = np.array(y_train)
 
     return X_train, y_train
-
-
-def params_to_filename(params):
-    return str(params['nn'][0]) + '-' + str(params['nn'][1]) + '-' + \
-            str(params['batchSize']) + '-' + str(params['buffer'])
 
 
 if __name__ == "__main__":
