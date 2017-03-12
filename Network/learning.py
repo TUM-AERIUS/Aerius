@@ -1,16 +1,15 @@
 import carmunk
 import numpy as np
 import random
-import csv
 from nn import neural_net
-import os.path
 import timeit
 import tensorflow as tf
+import os
 
-NUM_INPUT = 3
+NUM_INPUT = 40
 GAMMA = 0.9  # Forgetting.
-save_dir = "/Users/yuriy/Documents/Projects/Aerius/Network/tensorData"
-
+save_dir = "tensorboard"
+load_dir = "tensorData"
 
 def train_net(session, update, predict, state, input, labels, params):
     """
@@ -32,6 +31,11 @@ def train_net(session, update, predict, state, input, labels, params):
     buffer = params['buffer']
 
     saver = tf.train.Saver()
+    summary = tf.summary.merge_all()
+    summary_writer = tf.summary.FileWriter(save_dir, session.graph)
+
+    if len(os.listdir(load_dir)) > 1:
+        saver.restore(session, tf.train.latest_checkpoint(load_dir))
 
     # summary_writer = tf.summary.FileWriter(save_dir, session.graph)
 
@@ -94,6 +98,13 @@ def train_net(session, update, predict, state, input, labels, params):
             }
             session.run([update], feed_dict=feed_dict)
 
+            # Save summaries every 100 frames
+            if t % 100 == 0:
+                print('Step %d: saving loss' % (t))
+                summary_str = session.run(summary, feed_dict=feed_dict)
+                summary_writer.add_summary(summary_str, t)
+                summary_writer.flush()
+
         # Update the starting state with S'.
         gameState = new_state
 
@@ -102,7 +113,7 @@ def train_net(session, update, predict, state, input, labels, params):
             epsilon -= (1/train_frames)
 
         # We died, so update stuff.
-        if reward == -500:
+        if reward == -10000:
             # Log the car's distance at this T.
             data_collect.append([t, car_distance])
 
@@ -124,7 +135,7 @@ def train_net(session, update, predict, state, input, labels, params):
 
         # Save the model every 10,000 frames.
         if t % 5000 == 0:
-            saver.save(session, "/Users/yuriy/Documents/Projects/Aerius/Network/tensorData/model.ckpt")
+            saver.save(session, "tensorData/model.ckpt")
             print("Saving model")
 
 
@@ -171,7 +182,7 @@ def process_minibatch(session, minibatch, predict, state):
 
 
 if __name__ == "__main__":
-    nn_param = [164, 150]
+    nn_param = [180, 164]
     params = {
         "batchSize": 100,
         "buffer": 50000,

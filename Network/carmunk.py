@@ -12,6 +12,7 @@ import pymunk.pygame_util
 # PyGame init
 width = 1000
 height = 700
+NUM_INPUTS = 40
 pygame.init()
 screen = pygame.display.set_mode((width, height))
 clock = pygame.time.Clock()
@@ -74,7 +75,7 @@ class GameState:
         self.create_cat()
 
     def create_obstacle(self, x, y, r):
-        c_body = pymunk.Body(body_type = pymunk.Body.STATIC)
+        c_body = pymunk.Body(body_type=pymunk.Body.DYNAMIC, mass=100, moment=1)
         c_shape = pymunk.Circle(c_body, r)
         c_shape.elasticity = 1.0
         c_body.position = x, y
@@ -90,7 +91,7 @@ class GameState:
         self.cat_shape.color = THECOLORS["orange"]
         self.cat_shape.elasticity = 1.0
         self.cat_shape.angle = 0.5
-        direction = Vec2d(1, 0).rotated(self.cat_body.angle)
+        self.direction = Vec2d(1, 0).rotated(self.cat_body.angle)
         self.space.add(self.cat_body, self.cat_shape)
 
     def create_car(self, x, y, r):
@@ -101,8 +102,7 @@ class GameState:
         self.car_shape.color = THECOLORS["green"]
         self.car_shape.elasticity = 1.0
         self.car_body.angle = r
-        driving_direction = Vec2d(1, 0).rotated(self.car_body.angle)
-        #self.car_body.apply_impulse_at_local_point(driving_direction)
+        self.driving_direction = Vec2d(1, 0).rotated(self.car_body.angle)
         self.space.add(self.car_body, self.car_shape)
 
     def frame_step(self, action):
@@ -139,7 +139,7 @@ class GameState:
         # Car crashed when any reading == 1
         if self.car_is_crashed(readings):
             self.crashed = True
-            reward = -500
+            reward = -10000
             self.recover_from_crash(driving_direction)
         else:
             # Higher readings are better, so return the sum.
@@ -162,10 +162,10 @@ class GameState:
         self.cat_body.velocity = speed * direction
 
     def car_is_crashed(self, readings):
-        if readings[0] == 1 or readings[1] == 1 or readings[2] == 1:
-            return True
-        else:
-            return False
+        for i in range(40):
+            if readings[i] == 1:
+                return True
+        return False
 
     def recover_from_crash(self, driving_direction):
         """
@@ -201,14 +201,14 @@ class GameState:
         in a sonar "arm" is non-zero, then that arm returns a distance of 5.
         """
         # Make our arms.
-        arm_left = self.make_sonar_arm(x, y)
-        arm_middle = arm_left
-        arm_right = arm_left
+        arm = self.make_sonar_arm(x, y)
+        # arm_middle = arm_left
+        # arm_right = arm_left
 
         # Rotate them and get readings.
-        readings.append(self.get_arm_distance(arm_left, x, y, angle, 0.75))
-        readings.append(self.get_arm_distance(arm_middle, x, y, angle, 0))
-        readings.append(self.get_arm_distance(arm_right, x, y, angle, -0.75))
+        for i in range(NUM_INPUTS):
+            offset = -1 + (2 / NUM_INPUTS) * i
+            readings.append(self.get_arm_distance(arm, x, y, angle, offset))
 
         if show_sensors:
             pygame.display.update()
@@ -245,12 +245,12 @@ class GameState:
         return i
 
     def make_sonar_arm(self, x, y):
-        spread = 10  # Default spread.
-        distance = 20  # Gap before first sensor.
+        spread = 12  # Default spread.
+        distance = 15  # Gap before first sensor.
         arm_points = []
         # Make an arm. We build it flat because we'll rotate it about the
         # center later.
-        for i in range(1, 40):
+        for i in range(1, 50):
             arm_points.append((distance + x + (spread * i), y))
 
         return arm_points
@@ -266,10 +266,10 @@ class GameState:
         return int(new_x), int(new_y)
 
     def get_track_or_not(self, reading):
-        if reading == THECOLORS['black']:
-            return 0
-        else:
+        if reading == THECOLORS['blue'] or reading == THECOLORS['orange'] or reading == THECOLORS['red']:
             return 1
+        else:
+            return 0
 
 if __name__ == "__main__":
     game_state = GameState()

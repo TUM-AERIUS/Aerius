@@ -7,7 +7,7 @@ import numpy as np
 from nn import neural_net
 import tensorflow as tf
 
-NUM_SENSORS = 3
+NUM_SENSORS = 40
 
 
 def play(session, state, prediction):
@@ -41,6 +41,6 @@ def play(session, state, prediction):
 
 
 if __name__ == "__main__":
-    session, update, prediction, state, input, labels = neural_net(NUM_SENSORS, [164, 150])
+    session, update, prediction, state, input, labels = neural_net(NUM_SENSORS, [180, 164])
 
     play(session, state, prediction)
