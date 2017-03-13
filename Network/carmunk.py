@@ -23,7 +23,7 @@ draw_options = pymunk.pygame_util.DrawOptions(screen)
 screen.set_alpha(None)
 
 # Showing sensors and redrawing slows things down.
-show_sensors = True
+show_sensors = False
 draw_screen = True
 
 
@@ -46,16 +46,16 @@ class GameState:
         static = [
             pymunk.Segment(
                 self.space.static_body,
-                (0, 1), (0, height), 1),
+                (-30, -30), (-30, height+30), 1),
             pymunk.Segment(
                 self.space.static_body,
-                (1, height), (width, height), 1),
+                (-30, height + 30), (width + 30, height + 30), 1),
             pymunk.Segment(
                 self.space.static_body,
-                (width-1, height), (width-1, 1), 1),
+                (width+30, height+30), (width+30, -30), 1),
             pymunk.Segment(
                 self.space.static_body,
-                (1, 1), (width, 1), 1)
+                (-30, -30), (width+30, -30), 1)
         ]
         for s in static:
             s.friction = 1.
@@ -67,21 +67,33 @@ class GameState:
         # Create some obstacles, semi-randomly.
         # We'll create three and they'll move around to prevent over-fitting.
         self.obstacles = []
-        self.obstacles.append(self.create_obstacle(200, 350, 100))
-        self.obstacles.append(self.create_obstacle(700, 200, 125))
-        self.obstacles.append(self.create_obstacle(600, 600, 35))
+        self.generate_obstacles()
 
         # Create a cat.
         self.create_cat()
 
+    def generate_obstacles(self):
+        for obj in self.obstacles:
+            self.space.remove(obj[0])
+            self.space.remove(obj[1])
+        self.obstacles = []
+        obstacle_count = random.randint(5, 10)
+        for i in range(obstacle_count):
+            x = random.randint(50, width - 50)
+            y = random.randint(50, height - 50)
+            r = random.randint(30, 100)
+            self.obstacles.append(self.create_obstacle(x, y, r))
+        space.debug_draw(draw_options)
+
     def create_obstacle(self, x, y, r):
         c_body = pymunk.Body(body_type=pymunk.Body.DYNAMIC, mass=100, moment=1)
+        # TODO create squares
         c_shape = pymunk.Circle(c_body, r)
         c_shape.elasticity = 1.0
         c_body.position = x, y
         c_shape.color = THECOLORS["blue"]
         self.space.add(c_body, c_shape)
-        return c_body
+        return c_body, c_shape
 
     def create_cat(self):
         inertia = pymunk.moment_for_circle(1, 0, 14, (0, 0))
@@ -112,7 +124,7 @@ class GameState:
             self.car_body.angle += .2
 
         # Move obstacles.
-        if self.num_steps % 100 == 0:
+        if self.num_steps % 20 == 0:
             self.move_obstacles()
 
         # Move cat.
@@ -139,21 +151,36 @@ class GameState:
         # Car crashed when any reading == 1
         if self.car_is_crashed(readings):
             self.crashed = True
-            reward = -10000
+            reward = -500
             self.recover_from_crash(driving_direction)
         else:
             # Higher readings are better, so return the sum.
-            reward = -5 + int(self.sum_readings(readings) / 10)
+            reward = -5 + int(self.sum_readings(readings) / 300)
         self.num_steps += 1
+
+        if x > 990 or x < 10 or y > 690 or y < 10:
+            self.generate_obstacles()
+
+        if x > width - 10:
+            self.car_body.position = 30, y
+
+        if x < 10:
+            self.car_body.position = width - 30, y
+
+        if y > height - 10:
+            self.car_body.position = x, 30
+
+        if y < 10:
+            self.car_body.position = x, height - 30
 
         return reward, state
 
     def move_obstacles(self):
         # Randomly move obstacles around.
         for obstacle in self.obstacles:
-            speed = random.randint(1, 5)
+            speed = random.randint(0, 20)
             direction = Vec2d(1, 0).rotated(self.car_body.angle + random.randint(-2, 2))
-            obstacle.velocity = speed * direction
+            obstacle[0].velocity = speed * direction
 
     def move_cat(self):
         speed = random.randint(20, 200)
@@ -232,7 +259,7 @@ class GameState:
             # if we did.
             if rotated_p[0] <= 0 or rotated_p[1] <= 0 \
                     or rotated_p[0] >= width or rotated_p[1] >= height:
-                return i  # Sensor is off the screen.
+                return len(arm)  # Sensor is off the screen.
             else:
                 obs = screen.get_at(rotated_p)
                 if self.get_track_or_not(obs) != 0:

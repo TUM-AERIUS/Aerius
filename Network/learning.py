@@ -71,6 +71,7 @@ def train_net(session, update, predict, state, input, labels, params):
             # Get Q values for each action.
             qval = session.run([predict], feed_dict=feed_dict)
             action = np.argmax(qval)  # best
+            print(action)
 
         # Take action, observe new state and get our treat.
         reward, new_state = game_state.frame_step(action)
@@ -110,10 +111,10 @@ def train_net(session, update, predict, state, input, labels, params):
 
         # Decrement epsilon over time.
         if epsilon > 0.1 and t > observe:
-            epsilon -= (1/train_frames)
+            epsilon -= (1/train_frames) * 50
 
         # We died, so update stuff.
-        if reward == -10000:
+        if reward == -500:
             # Log the car's distance at this T.
             data_collect.append([t, car_distance])
 
