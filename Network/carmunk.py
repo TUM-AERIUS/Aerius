@@ -32,6 +32,11 @@ class GameState:
         # Global-ish.
         self.crashed = False
 
+        # Current angle relative to projected trajectory
+        self.angle_sum = 0
+
+        # Total orhtogonal deviations
+
         # Physics stuff.
         self.space = space
         self.space.gravity = pymunk.Vec2d(0., 0.)
@@ -120,8 +125,11 @@ class GameState:
     def frame_step(self, action):
         if action == 0:  # Turn left.
             self.car_body.angle -= .2
+            self.angle_sum   -= .2
         elif action == 1:  # Turn right.
             self.car_body.angle += .2
+            self.angle_sum   += .2
+        self.dev_sum += # TODO added Orthogonal Distance based on angle_sum
 
         # Move obstacles.
         if self.num_steps % 20 == 0:
@@ -157,6 +165,9 @@ class GameState:
             # Higher readings are better, so return the sum.
             reward = -5 + int(self.sum_readings(readings) / 300)
         self.num_steps += 1
+
+        reward -= 500 / 3.14 * abs(self.dev_sum)
+        reward += 50 - 50    * abs(self.angle_sum)
 
         if x > 990 or x < 10 or y > 690 or y < 10:
             self.generate_obstacles()
@@ -204,7 +215,7 @@ class GameState:
             self.crashed = False
             for i in range(10):
                 self.car_body.angle += .2  # Turn a little.
-                screen.fill(THECOLORS["red"])  # Red is scary!
+                screen.fill(THECOLORS["gray"])  # Red is scary!
                 space.debug_draw(draw_options)
                 self.space.step(1./10)
                 if draw_screen:

@@ -37,7 +37,7 @@ def train_net(session, update, predict, state, input, labels, params):
     if len(os.listdir(load_dir)) > 1:
         saver.restore(session, tf.train.latest_checkpoint(load_dir))
 
-    # summary_writer = tf.summary.FileWriter(save_dir, session.graph)
+    summary_writer = tf.summary.FileWriter(save_dir, session.graph)
 
     # Just stuff used below.
     max_car_distance = 0

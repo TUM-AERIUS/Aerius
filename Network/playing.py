@@ -12,8 +12,8 @@ NUM_SENSORS = 40
 
 def play(session, state, prediction):
 
-    saver = tf.train.Saver()
-    saver.restore(session, tf.train.latest_checkpoint("tensorData/"))
+    #saver = tf.train.Saver()
+    #saver.restore(session, tf.train.latest_checkpoint("tensorData/"))
 
     car_distance = 0
     game_state = carmunk.GameState()
