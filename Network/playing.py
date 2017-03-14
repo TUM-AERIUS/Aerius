@@ -7,7 +7,7 @@ import numpy as np
 from nn import neural_net
 import tensorflow as tf
 
-NUM_SENSORS = 40
+NUM_SENSORS = 43
 
 
 def play(session, state, prediction):

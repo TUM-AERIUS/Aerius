@@ -81,7 +81,7 @@ class GameState:
         for i in range(obstacle_count):
             x = random.randint(50, width - 50)
             y = random.randint(50, height - 50)
-            r = random.randint(30, 100)
+            r = random.randint(20, 70)
             self.obstacles.append(self.create_obstacle(x, y, r))
         space.debug_draw(draw_options)
 
@@ -131,6 +131,8 @@ class GameState:
         if self.num_steps % 5 == 0:
             self.move_cat()
 
+        old_x, old_y = self.car_body.position
+
         driving_direction = Vec2d(1, 0).rotated(self.car_body.angle)
         self.car_body.velocity = 100 * driving_direction
 
@@ -145,6 +147,11 @@ class GameState:
         # Get the current location and the readings there.
         x, y = self.car_body.position
         readings = self.get_sonar_readings(x, y, self.car_body.angle)
+        # add direction angle
+        cos_alfa = (x - old_x) / math.sqrt(math.pow((x - old_x), 2) + math.pow((x - old_y), 2))
+        readings.append(cos_alfa)
+        readings.append(x-old_x)
+        readings.append(y-old_y)
         state = np.array([readings])
 
         # Set the reward.
@@ -153,9 +160,12 @@ class GameState:
             self.crashed = True
             reward = -500
             self.recover_from_crash(driving_direction)
+        elif cos_alfa < 0:
+            reward = -200 * abs(cos_alfa)
         else:
             # Higher readings are better, so return the sum.
-            reward = -5 + int(self.sum_readings(readings) / 300)
+            reward = -5 + int(self.sum_readings(readings) / 300) # - (1-cos_alfa)*20
+
         self.num_steps += 1
 
         if x > 990 or x < 10 or y > 690 or y < 10:
