@@ -6,7 +6,7 @@ import timeit
 import tensorflow as tf
 import os
 
-NUM_INPUT = 43
+NUM_INPUT = 46
 GAMMA = 0.9  # Forgetting.
 save_dir = "tensorboard"
 load_dir = "tensorData"
@@ -111,7 +111,7 @@ def train_net(session, update, predict, state, input, labels, params):
 
         # Decrement epsilon over time.
         if epsilon > 0.1 and t > observe:
-            epsilon -= (1/train_frames) * 50
+            epsilon -= (1/train_frames)
 
         # We died, so update stuff.
         if reward == -500:
