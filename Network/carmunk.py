@@ -24,8 +24,8 @@ screen.set_alpha(None)
 
 # Showing sensors and redrawing slows things down.
 show_sensors = False
-draw_screen = True
-random_press = False
+draw_screen = False
+random_press = True
 
 
 class GameState:
@@ -35,11 +35,15 @@ class GameState:
 
         self.given_x = 1
         self.given_y = 0
-        self.given_angle = 0 # 0 till 360
+        self.given_angle = 0  # 0 till 2*pi
 
         # Physics stuff.
         self.space = space
         self.space.gravity = pymunk.Vec2d(0., 0.)
+
+        # Create rewards
+        self.old_reward = 0
+        self.new_reward = 0
 
         # Create the car.
         self.create_car(100, 100, 0.5)
@@ -151,8 +155,9 @@ class GameState:
         x, y = self.car_body.position
         readings = self.get_sonar_readings(x, y, self.car_body.angle)
         # add direction angle
-        cos_alfa = ((x - old_x)*self.given_x + (y - old_y)*self.given_y) / math.sqrt(math.pow((x - old_x), 2) + math.pow((x - old_y), 2))
+        cos_alfa = math.cos(self.car_body.angle - self.given_angle)
         readings.append(cos_alfa)
+        readings.append(self.car_body.angle)
         readings.append(x-old_x)
         readings.append(y-old_y)
         readings.append(self.given_angle)
@@ -171,7 +176,7 @@ class GameState:
                 self.given_x = math.cos(self.given_angle)
                 self.given_y = -math.sin(self.given_angle)
 
-        if random_press and self.num_steps % 100 == 0:
+        if random_press and self.num_steps % 300 == 0:
             n = random.randint(0, 2)
             if n == 0:
                 self.given_angle += math.pi / 6
@@ -187,11 +192,13 @@ class GameState:
             self.crashed = True
             reward = -500
             self.recover_from_crash(driving_direction)
-        elif cos_alfa < 0:
-            reward = -200 * abs(cos_alfa)
+        # elif cos_alfa < 0:
+        #     reward = -200 * abs(cos_alfa)
         else:
             # Higher readings are better, so return the sum.
-            reward = -5 + int(self.sum_readings(readings) / 200) * math.pow(cos_alfa, 0.25)
+            self.old_reward = self.new_reward
+            self.new_reward = 10 * math.pow(cos_alfa, 3)
+            reward = self.new_reward - self.old_reward
 
         self.num_steps += 1
 
