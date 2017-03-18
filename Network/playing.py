@@ -40,14 +40,20 @@ def play(session, state, prediction):
             action = np.argmax(session.run([prediction], feed_dict=feed_dict))
 
         else:
-            cos_angle = math.cos(gameState[0][41] - gameState[0][44])
-            sin_angle = math.sin(gameState[0][41] - gameState[0][44])
 
-            if cos_angle < 0.92:
+            dx = gameState[0][42]
+            dy = gameState[0][43]
+            fx = gameState[0][45]
+            fy = -gameState[0][46]
+
+            cos_angle = dx*fx + dy*fy
+            sin_angle = dx*fy - fx*dy
+
+            if cos_angle < 0.999:
                 if sin_angle > 0:
-                    action = 0
-                else:
                     action = 1
+                else:
+                    action = 0
             else:
                 action = 2
 
