@@ -78,9 +78,6 @@ class GameState:
         self.obstacles = []
         self.generate_obstacles()
 
-        # Create a cat.
-        self.create_cat()
-
     def generate_obstacles(self):
         for obj in self.obstacles:
             self.space.remove(obj[0])
@@ -88,8 +85,8 @@ class GameState:
         self.obstacles = []
         obstacle_count = random.randint(5, 10)
         for i in range(obstacle_count):
-            x = random.randint(50, width - 50)
-            y = random.randint(50, height - 50)
+            x = random.randint(150, width - 150)
+            y = random.randint(150, height - 150)
             r = random.randint(20, 70)
             self.obstacles.append(self.create_obstacle(x, y, r))
         space.debug_draw(draw_options)
@@ -103,17 +100,6 @@ class GameState:
         c_shape.color = THECOLORS["blue"]
         self.space.add(c_body, c_shape)
         return c_body, c_shape
-
-    def create_cat(self):
-        inertia = pymunk.moment_for_circle(1, 0, 14, (0, 0))
-        self.cat_body = pymunk.Body(1, inertia)
-        self.cat_body.position = 50, height - 100
-        self.cat_shape = pymunk.Circle(self.cat_body, 30)
-        self.cat_shape.color = THECOLORS["orange"]
-        self.cat_shape.elasticity = 1.0
-        self.cat_shape.angle = 0.5
-        self.direction = Vec2d(1, 0).rotated(self.cat_body.angle)
-        self.space.add(self.cat_body, self.cat_shape)
 
     def create_car(self, x, y, r):
         inertia = pymunk.moment_for_circle(1, 0, 14, (0, 0))
@@ -135,10 +121,6 @@ class GameState:
         # Move obstacles.
         if self.num_steps % 20 == 0:
             self.move_obstacles()
-
-        # Move cat.
-        if self.num_steps % 5 == 0:
-            self.move_cat()
 
         old_x, old_y = self.car_body.position
 
@@ -237,12 +219,6 @@ class GameState:
             speed = random.randint(0, 20)
             direction = Vec2d(1, 0).rotated(self.car_body.angle + random.randint(-2, 2))
             obstacle[0].velocity = speed * direction
-
-    def move_cat(self):
-        speed = random.randint(20, 200)
-        self.cat_body.angle -= random.randint(-1, 1)
-        direction = Vec2d(1, 0).rotated(self.cat_body.angle)
-        self.cat_body.velocity = speed * direction
 
     def car_is_crashed(self, readings):
         for i in range(40):
