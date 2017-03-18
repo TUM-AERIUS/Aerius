@@ -24,8 +24,8 @@ screen.set_alpha(None)
 
 # Showing sensors and redrawing slows things down.
 show_sensors = False
-draw_screen = False
-random_press = True
+draw_screen = True
+random_press = False
 
 
 class GameState:
@@ -128,9 +128,9 @@ class GameState:
 
     def frame_step(self, action):
         if action == 0:  # Turn left.
-            self.car_body.angle -= .2
+            self.car_body.angle -= .1
         elif action == 1:  # Turn right.
-            self.car_body.angle += .2
+            self.car_body.angle += .1
 
         # Move obstacles.
         if self.num_steps % 20 == 0:
@@ -149,6 +149,7 @@ class GameState:
         screen.fill(THECOLORS["black"])
         space.debug_draw(draw_options)
         self.space.step(1./10)
+
         clock.tick(25)
 
         # Get the current location and the readings there.
@@ -157,21 +158,21 @@ class GameState:
         # add direction angle
         cos_alfa = math.cos(self.car_body.angle - self.given_angle)
         readings.append(cos_alfa)
-        readings.append(self.car_body.angle)
-        readings.append(x-old_x)
-        readings.append(y-old_y)
-        readings.append(self.given_angle)
-        readings.append(self.given_x)
-        readings.append(self.given_y)
+        readings.append(self.car_body.angle % 2*math.pi)
+        readings.append((x-old_x)/math.sqrt(math.pow(x-old_x, 2) + math.pow(y-old_y, 2)))
+        readings.append((y-old_y)/math.sqrt(math.pow(x-old_x, 2) + math.pow(y-old_y, 2)))
+        readings.append(self.given_angle % 2*math.pi)
+        readings.append(self.given_x / math.sqrt(math.pow(self.given_x, 2) + math.pow(self.given_y, 2)))
+        readings.append(self.given_y / math.sqrt(math.pow(self.given_x, 2) + math.pow(self.given_y, 2)))
         state = np.array([readings])
 
         events = pygame.event.get()
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT:
-                    self.given_angle += math.pi / 6
+                    self.given_angle += math.pi / 8
                 if event.key == pygame.K_RIGHT:
-                    self.given_angle -= math.pi / 6
+                    self.given_angle -= math.pi / 8
                 self.given_angle %= 2*math.pi
                 self.given_x = math.cos(self.given_angle)
                 self.given_y = -math.sin(self.given_angle)
@@ -179,9 +180,9 @@ class GameState:
         if random_press and self.num_steps % 300 == 0:
             n = random.randint(0, 2)
             if n == 0:
-                self.given_angle += math.pi / 6
+                self.given_angle += math.pi / 8
             if n == 1:
-                self.given_angle -= math.pi / 6
+                self.given_angle -= math.pi / 8
             self.given_angle %= 2 * math.pi
             self.given_x = math.cos(self.given_angle)
             self.given_y = -math.sin(self.given_angle)
@@ -192,13 +193,15 @@ class GameState:
             self.crashed = True
             reward = -500
             self.recover_from_crash(driving_direction)
-        # elif cos_alfa < 0:
-        #     reward = -200 * abs(cos_alfa)
+        # elif cos_alfa > 0.9:
+        #     reward =
         else:
             # Higher readings are better, so return the sum.
             self.old_reward = self.new_reward
             self.new_reward = 10 * math.pow(cos_alfa, 3)
             reward = self.new_reward - self.old_reward
+            if reward > 0 and cos_alfa > 0.95:
+                reward += 5 * cos_alfa
 
         self.num_steps += 1
 

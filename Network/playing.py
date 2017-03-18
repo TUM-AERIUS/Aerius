@@ -4,6 +4,7 @@ Once a model is learned, use this to play it.
 
 import carmunk
 import numpy as np
+import math
 from nn import neural_net
 import tensorflow as tf
 
@@ -24,13 +25,37 @@ def play(session, state, prediction):
     # Move.
     while True:
         car_distance += 1
+        obstacle = False
+        for i in range(40):
+            if gameState[0][i] < 10:
+                obstacle = True
+                break
 
-        feed_dict = {
-            state: gameState
-        }
+        if obstacle:
+            feed_dict = {
+                state: gameState
+            }
 
-        # Choose action.
-        action = np.argmax(session.run([prediction], feed_dict=feed_dict))
+            # Choose action.
+            action = np.argmax(session.run([prediction], feed_dict=feed_dict))
+
+        else:
+
+            dx = gameState[0][42]
+            dy = gameState[0][43]
+            fx = gameState[0][45]
+            fy = -gameState[0][46]
+
+            cos_angle = dx*fx + dy*fy
+            sin_angle = dx*fy - fx*dy
+
+            if cos_angle < 0.999:
+                if sin_angle > 0:
+                    action = 1
+                else:
+                    action = 0
+            else:
+                action = 2
 
         # Take action.
         _, gameState = game_state.frame_step(action)
