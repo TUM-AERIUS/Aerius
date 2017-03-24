@@ -92,9 +92,13 @@ class GameState:
         space.debug_draw(draw_options)
 
     def create_obstacle(self, x, y, r):
-        c_body = pymunk.Body(body_type=pymunk.Body.DYNAMIC, mass=100, moment=1)
-        # TODO create squares
-        c_shape = pymunk.Circle(c_body, r)
+        c_body = pymunk.Body(body_type=pymunk.Body.DYNAMIC, mass=100, moment=10000)
+        a = random.randint(50, 200)
+        b = random.randint(50, 150)
+        if random.randint(0, 2) == 0:
+            c_shape = pymunk.Circle(c_body, r)
+        else:
+            c_shape = pymunk.Poly(c_body, [(a/2, -b/2), (a/2, b/2), (-a/2, b/2), (-a/2, -b/2)])
         c_shape.elasticity = 1.0
         c_body.position = x, y
         c_shape.color = THECOLORS["blue"]
@@ -102,10 +106,11 @@ class GameState:
         return c_body, c_shape
 
     def create_car(self, x, y, r):
-        inertia = pymunk.moment_for_circle(1, 0, 14, (0, 0))
+        inertia = pymunk.moment_for_box(1, [30, 20])
         self.car_body = pymunk.Body(1, inertia)
         self.car_body.position = x, y
-        self.car_shape = pymunk.Circle(self.car_body, 25)
+        # self.car_shape = pymunk.Circle(self.car_body, 25)
+        self.car_shape = pymunk.Poly(self.car_body, [(15, -10), (15, 10), (-15, 10), (-15, -10)])
         self.car_shape.color = THECOLORS["green"]
         self.car_shape.elasticity = 1.0
         self.car_body.angle = r
@@ -119,7 +124,7 @@ class GameState:
             self.car_body.angle += .1
 
         # Move obstacles.
-        if self.num_steps % 20 == 0:
+        if self.num_steps % 100 == 0:
             self.move_obstacles()
 
         old_x, old_y = self.car_body.position
@@ -216,7 +221,7 @@ class GameState:
     def move_obstacles(self):
         # Randomly move obstacles around.
         for obstacle in self.obstacles:
-            speed = random.randint(0, 20)
+            speed = random.randint(0, 10)
             direction = Vec2d(1, 0).rotated(self.car_body.angle + random.randint(-2, 2))
             obstacle[0].velocity = speed * direction
 
@@ -305,7 +310,7 @@ class GameState:
 
     def make_sonar_arm(self, x, y):
         spread = 12  # Default spread.
-        distance = 15  # Gap before first sensor.
+        distance = 20  # Gap before first sensor.
         arm_points = []
         # Make an arm. We build it flat because we'll rotate it about the
         # center later.
