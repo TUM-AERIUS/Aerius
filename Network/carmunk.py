@@ -23,7 +23,7 @@ draw_options = pymunk.pygame_util.DrawOptions(screen)
 screen.set_alpha(None)
 
 # Showing sensors and redrawing slows things down.
-show_sensors = True
+show_sensors = False
 draw_screen = True
 random_press = False
 
@@ -88,7 +88,7 @@ class GameState:
             y = random.randint(150, height - 150)
             r = random.randint(20, 70)
             self.obstacles.append(self.create_obstacle(x, y, r))
-        space.debug_draw(draw_options)
+            space.debug_draw(draw_options)
 
     def create_obstacle(self, x, y, r):
         c_body = pymunk.Body(body_type=pymunk.Body.DYNAMIC, mass=100, moment=10000)
@@ -100,7 +100,7 @@ class GameState:
             c_shape = pymunk.Poly(c_body, [(a/2, -b/2), (a/2, b/2), (-a/2, b/2), (-a/2, -b/2)])
         c_shape.elasticity = 1.0
         c_body.position = x, y
-        c_shape.color = (40, 40, 40)
+        c_shape.color = THECOLORS["grey"]
         self.space.add(c_body, c_shape)
         return c_body, c_shape
 
@@ -290,8 +290,8 @@ class GameState:
             if right < min_right:
                 min_right = right
 
-        # readings.append(min_left)
-        # readings.append(min_right)
+        readings.append(min_left)
+        readings.append(min_right)
 
         if show_sensors:
             pygame.display.update()
@@ -355,7 +355,7 @@ class GameState:
         return int(new_x), int(new_y)
 
     def get_track_or_not(self, reading):
-        if reading == THECOLORS['blue'] or reading == THECOLORS['orange'] or reading == THECOLORS['red'] or reading == (40, 40, 40):
+        if reading == THECOLORS['blue'] or reading == THECOLORS['orange'] or reading == THECOLORS['red'] or reading == THECOLORS['grey']:
             return 1
         else:
             return 0
