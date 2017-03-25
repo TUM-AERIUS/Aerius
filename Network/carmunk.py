@@ -23,7 +23,7 @@ draw_options = pymunk.pygame_util.DrawOptions(screen)
 screen.set_alpha(None)
 
 # Showing sensors and redrawing slows things down.
-show_sensors = False
+show_sensors = True
 draw_screen = True
 random_press = False
 
@@ -73,8 +73,7 @@ class GameState:
             s.color = THECOLORS['red']
         self.space.add(static)
 
-        # Create some obstacles, semi-randomly.
-        # We'll create three and they'll move around to prevent over-fitting.
+        # Create some obstacles
         self.obstacles = []
         self.generate_obstacles()
 
@@ -101,17 +100,18 @@ class GameState:
             c_shape = pymunk.Poly(c_body, [(a/2, -b/2), (a/2, b/2), (-a/2, b/2), (-a/2, -b/2)])
         c_shape.elasticity = 1.0
         c_body.position = x, y
-        c_shape.color = THECOLORS["blue"]
+        c_shape.color = (40, 40, 40)
         self.space.add(c_body, c_shape)
         return c_body, c_shape
 
     def create_car(self, x, y, r):
-        inertia = pymunk.moment_for_box(1, [30, 20])
+        inertia = pymunk.moment_for_box(100000, [30, 20])
         self.car_body = pymunk.Body(1, inertia)
         self.car_body.position = x, y
         # self.car_shape = pymunk.Circle(self.car_body, 25)
         self.car_shape = pymunk.Poly(self.car_body, [(15, -10), (15, 10), (-15, 10), (-15, -10)])
-        self.car_shape.color = THECOLORS["green"]
+        # self.car_shape = pymunk.Poly(self.car_body, [(30, 0), (30, 20), (0, 20), (0, 0)])
+        self.car_shape.color = THECOLORS["white"]
         self.car_shape.elasticity = 1.0
         self.car_body.angle = r
         self.driving_direction = Vec2d(1, 0).rotated(self.car_body.angle)
@@ -145,12 +145,17 @@ class GameState:
         # add direction angle
         cos_alfa = math.cos(self.car_body.angle - self.given_angle)
         readings.append(cos_alfa)
+        # car direction
         readings.append(self.car_body.angle % 2*math.pi)
         readings.append((x-old_x)/math.sqrt(math.pow(x-old_x, 2) + math.pow(y-old_y, 2)))
         readings.append((y-old_y)/math.sqrt(math.pow(x-old_x, 2) + math.pow(y-old_y, 2)))
+        # given direction
         readings.append(self.given_angle % 2*math.pi)
         readings.append(self.given_x / math.sqrt(math.pow(self.given_x, 2) + math.pow(self.given_y, 2)))
         readings.append(self.given_y / math.sqrt(math.pow(self.given_x, 2) + math.pow(self.given_y, 2)))
+        # car position
+        # readings.append(self.car_body.position.x)
+        # readings.append(self.car_body.position.y)
         state = np.array([readings])
 
         events = pygame.event.get()
@@ -266,13 +271,27 @@ class GameState:
         """
         # Make our arms.
         arm = self.make_sonar_arm(x, y)
-        # arm_middle = arm_left
-        # arm_right = arm_left
+        side_arm = self.make_sonar_arm(x - 10*math.cos(angle), y - 10*math.sin(angle), distance=10)
 
         # Rotate them and get readings.
         for i in range(NUM_INPUTS):
             offset = -1 + (2 / NUM_INPUTS) * i
             readings.append(self.get_arm_distance(arm, x, y, angle, offset))
+
+        # Right and left ultrasonic sensors
+        min_left = math.inf
+        min_right = math.inf
+        for i in range(NUM_INPUTS//4):
+            offset = -0.6 + (1.2 / (NUM_INPUTS//4)) * i
+            left = self.get_arm_distance(side_arm, x - 10*math.cos(angle), y - 10*math.sin(angle), angle + math.pi / 2, offset)
+            right = self.get_arm_distance(side_arm, x - 10*math.cos(angle), y - 10*math.sin(angle), angle - math.pi / 2, offset)
+            if left < min_left:
+                min_left = left
+            if right < min_right:
+                min_right = right
+
+        # readings.append(min_left)
+        # readings.append(min_right)
 
         if show_sensors:
             pygame.display.update()
@@ -303,19 +322,25 @@ class GameState:
                     return i
 
             if show_sensors:
-                pygame.draw.circle(screen, (255, 255, 255), (rotated_p), 2)
+                # if straight
+                if len(arm) > 10:
+                    color = (34, 122, 172)
+                else:
+                    color = (78, 127, 80)
+
+                pygame.draw.circle(screen, color, (rotated_p), 1)
 
         # Return the distance for the arm.
         return i
 
-    def make_sonar_arm(self, x, y):
+    def make_sonar_arm(self, x, y, distance=50):
         spread = 12  # Default spread.
-        distance = 20  # Gap before first sensor.
+        distance_from_car = 10  # Gap before first sensor.
         arm_points = []
         # Make an arm. We build it flat because we'll rotate it about the
         # center later.
-        for i in range(1, 50):
-            arm_points.append((distance + x + (spread * i), y))
+        for i in range(1, distance):
+            arm_points.append((distance_from_car + x + (spread * i), y))
 
         return arm_points
 
@@ -330,7 +355,7 @@ class GameState:
         return int(new_x), int(new_y)
 
     def get_track_or_not(self, reading):
-        if reading == THECOLORS['blue'] or reading == THECOLORS['orange'] or reading == THECOLORS['red']:
+        if reading == THECOLORS['blue'] or reading == THECOLORS['orange'] or reading == THECOLORS['red'] or reading == (40, 40, 40):
             return 1
         else:
             return 0

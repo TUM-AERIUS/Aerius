@@ -4,7 +4,6 @@ Once a model is learned, use this to play it.
 
 import carmunk
 import numpy as np
-import math
 from nn import neural_net
 import tensorflow as tf
 
@@ -40,9 +39,10 @@ def play(session, state, prediction):
             action = np.argmax(session.run([prediction], feed_dict=feed_dict))
 
         else:
-
+            # car velocity vector
             dx = gameState[0][42]
             dy = gameState[0][43]
+            # given velocity vector
             fx = gameState[0][45]
             fy = -gameState[0][46]
 
