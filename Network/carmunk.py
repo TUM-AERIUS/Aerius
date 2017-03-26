@@ -23,7 +23,7 @@ draw_options = pymunk.pygame_util.DrawOptions(screen)
 screen.set_alpha(None)
 
 # Showing sensors and redrawing slows things down.
-show_sensors = True
+show_sensors = False
 draw_screen = True
 random_press = False
 
@@ -209,8 +209,12 @@ class GameState:
             y = random.randint(150, height - 150)
             r = random.randint(20, 70)
             self.obstacles.append(self.create_obstacle(x, y, r))
+<<<<<<< HEAD
 
         space.debug_draw(draw_options)
+=======
+            space.debug_draw(draw_options)
+>>>>>>> 4adacb1e8939fd58920622b8a31f02f4b8578990
 
     def create_obstacle(self, x, y, r):
         c_body = pymunk.Body(body_type=pymunk.Body.DYNAMIC, mass=100, moment=10000)
@@ -223,8 +227,12 @@ class GameState:
 
         c_shape.elasticity = 1.0
         c_body.position = x, y
+<<<<<<< HEAD
         c_shape.color = (40, 40, 40)
 
+=======
+        c_shape.color = THECOLORS["grey"]
+>>>>>>> 4adacb1e8939fd58920622b8a31f02f4b8578990
         self.space.add(c_body, c_shape)
 
         return c_body, c_shape
@@ -379,6 +387,115 @@ class GameState:
                     pygame.display.flip()
                 clock.tick(55)
 
+<<<<<<< HEAD
+=======
+    def sum_readings(self, readings):
+        """Sum the number of non-zero readings."""
+        tot = 0
+        for i in readings:
+            tot += i
+        return tot
+
+    def get_sonar_readings(self, x, y, angle):
+        readings = []
+        """
+        Instead of using a grid of boolean(ish) sensors, sonar readings
+        simply return N "distance" readings, one for each sonar
+        we're simulating. The distance is a count of the first non-zero
+        reading starting at the object. For instance, if the fifth sensor
+        in a sonar "arm" is non-zero, then that arm returns a distance of 5.
+        """
+        # Make our arms.
+        arm = self.make_sonar_arm(x, y)
+        side_arm = self.make_sonar_arm(x - 10*math.cos(angle), y - 10*math.sin(angle), distance=10)
+
+        # Rotate them and get readings.
+        for i in range(NUM_INPUTS):
+            offset = -1 + (2 / NUM_INPUTS) * i
+            readings.append(self.get_arm_distance(arm, x, y, angle, offset))
+
+        # Right and left ultrasonic sensors
+        min_left = math.inf
+        min_right = math.inf
+        for i in range(NUM_INPUTS//4):
+            offset = -0.6 + (1.2 / (NUM_INPUTS//4)) * i
+            left = self.get_arm_distance(side_arm, x - 10*math.cos(angle), y - 10*math.sin(angle), angle + math.pi / 2, offset)
+            right = self.get_arm_distance(side_arm, x - 10*math.cos(angle), y - 10*math.sin(angle), angle - math.pi / 2, offset)
+            if left < min_left:
+                min_left = left
+            if right < min_right:
+                min_right = right
+
+        readings.append(min_left)
+        readings.append(min_right)
+
+        if show_sensors:
+            pygame.display.update()
+
+        return readings
+
+    def get_arm_distance(self, arm, x, y, angle, offset):
+        # Used to count the distance.
+        i = 0
+
+        # Look at each point and see if we've hit something.
+        for point in arm:
+            i += 1
+
+            # Move the point to the right spot.
+            rotated_p = self.get_rotated_point(
+                x, y, point[0], point[1], angle + offset
+            )
+
+            # Check if we've hit something. Return the current i (distance)
+            # if we did.
+            if rotated_p[0] <= 0 or rotated_p[1] <= 0 \
+                    or rotated_p[0] >= width or rotated_p[1] >= height:
+                return len(arm)  # Sensor is off the screen.
+            else:
+                obs = screen.get_at(rotated_p)
+                if self.get_track_or_not(obs) != 0:
+                    return i
+
+            if show_sensors:
+                # if straight
+                if len(arm) > 10:
+                    color = (34, 122, 172)
+                else:
+                    color = (78, 127, 80)
+
+                pygame.draw.circle(screen, color, (rotated_p), 1)
+
+        # Return the distance for the arm.
+        return i
+
+    def make_sonar_arm(self, x, y, distance=50):
+        spread = 12  # Default spread.
+        distance_from_car = 10  # Gap before first sensor.
+        arm_points = []
+        # Make an arm. We build it flat because we'll rotate it about the
+        # center later.
+        for i in range(1, distance):
+            arm_points.append((distance_from_car + x + (spread * i), y))
+
+        return arm_points
+
+    def get_rotated_point(self, x_1, y_1, x_2, y_2, radians):
+        # Rotate x_2, y_2 around x_1, y_1 by angle.
+        x_change = (x_2 - x_1) * math.cos(radians) + \
+            (y_2 - y_1) * math.sin(radians)
+        y_change = (y_1 - y_2) * math.cos(radians) - \
+            (x_1 - x_2) * math.sin(radians)
+        new_x = x_change + x_1
+        new_y = height - (y_change + y_1)
+        return int(new_x), int(new_y)
+
+    def get_track_or_not(self, reading):
+        if reading == THECOLORS['blue'] or reading == THECOLORS['orange'] or reading == THECOLORS['red'] or reading == THECOLORS['grey']:
+            return 1
+        else:
+            return 0
+>>>>>>> 4adacb1e8939fd58920622b8a31f02f4b8578990
 
 if __name__ == "__main__":
     game_state = GameState()

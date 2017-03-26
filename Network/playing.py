@@ -7,7 +7,7 @@ import numpy as np
 from nn import neural_net
 import tensorflow as tf
 
-NUM_SENSORS = 47
+NUM_SENSORS = 49
 
 
 def play(session, state, prediction):
@@ -26,9 +26,18 @@ def play(session, state, prediction):
         car_distance += 1
         obstacle = False
         for i in range(40):
-            if gameState[0][i] < 10:
-                obstacle = True
-                break
+            if i > 15 and i < 30:
+                if gameState[0][i] < 10:
+                    obstacle = True
+                    break
+            else:
+                if gameState[0][i] < 4:
+                    obstacle = True
+                    break
+
+        # side sensors
+        if gameState[0][40] <= 2 or gameState[0][41] <= 2:
+            obstacle = True
 
         if obstacle:
             feed_dict = {
@@ -40,11 +49,11 @@ def play(session, state, prediction):
 
         else:
             # car velocity vector
-            dx = gameState[0][42]
-            dy = gameState[0][43]
+            dx = gameState[0][44]
+            dy = gameState[0][45]
             # given velocity vector
-            fx = gameState[0][45]
-            fy = -gameState[0][46]
+            fx = gameState[0][47]
+            fy = -gameState[0][48]
 
             cos_angle = dx*fx + dy*fy
             sin_angle = dx*fy - fx*dy
