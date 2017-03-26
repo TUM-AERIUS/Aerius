@@ -191,11 +191,6 @@ class GameState:
         self.obstacles = []
         self.generate_obstacles()
 
-        # Declare Other with None
-        self.car_body  = None
-        self.car_shape = None
-        self.car_direction = None
-
     def generate_obstacles(self):
         for obj in self.obstacles:
             self.space.remove(obj[0])
