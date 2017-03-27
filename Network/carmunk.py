@@ -11,7 +11,7 @@ import pymunk.pygame_util
 
 # PyGame init
 width = 1000
-height = 700
+height = 600
 NUM_INPUTS = 40
 pygame.init()
 screen = pygame.display.set_mode((width, height))
@@ -26,6 +26,126 @@ screen.set_alpha(None)
 show_sensors = True
 draw_screen = True
 random_press = False
+
+
+def points(a, b):
+    return [(a, -b), (a, b), (-a, b), (-a, -b)]
+
+
+def car_is_crashed(readings):
+    for i in range(40):
+        if readings[i] == 1: return True
+    return False
+
+
+def sum_readings(readings):
+    """Sum the number of non-zero readings."""
+    tot = 0
+    for i in readings:
+        tot += i
+    return tot
+
+
+def make_sonar_arm(x, y, distance=50):
+    spread = 12  # Default spread.
+    distance_from_car = 10  # Gap before first sensor.
+    arm_points = []
+    # Make an arm. We build it flat because we'll rotate it about the
+    # center later.
+    for i in range(1, distance):
+        arm_points.append((distance_from_car + x + (spread * i), y))
+
+    return arm_points
+
+
+def get_rotated_point(x_1, y_1, x_2, y_2, radians):
+    # Rotate x_2, y_2 around x_1, y_1 by angle.
+    cos = math.cos(radians)
+    sin = math.sin(radians)
+
+    x_change = (x_2 - x_1) * cos + (y_2 - y_1) * sin
+    y_change = (y_1 - y_2) * cos - (x_1 - x_2) * sin
+
+    new_x = x_change + x_1
+    new_y = height - (y_change + y_1)
+
+    return int(new_x), int(new_y)
+
+
+def get_track_or_not(reading):
+    colors = [THECOLORS['blue'], THECOLORS['orange'], THECOLORS['red'], (40, 40, 40)]
+    return 1 if reading in colors else 0
+
+
+def get_arm_distance(arm, x, y, angle, offset):
+    # Used to count the distance.
+    i = 0
+
+    # Look at each point and see if we've hit something.
+    for point in arm:
+        i += 1
+
+        # Move the point to the right spot.
+        rotated_p = get_rotated_point(x, y, point[0], point[1], angle + offset)
+
+        # Check if we've hit something. Return the current i (distance)
+        # if we did.
+
+        if not (0 < rotated_p[0] < width and 0 < rotated_p[1] < height):
+            return len(arm)  # Sensor is off the screen.
+        else:
+            obs = screen.get_at(rotated_p)
+            if get_track_or_not(obs) != 0:
+                return i
+
+        if show_sensors:  # if straight
+            color = (34, 122, 172) if len(arm) > 10 else (78, 127, 80)
+            pygame.draw.circle(screen, color, rotated_p, 1)
+
+    # Return the distance for the arm.
+    return i
+
+
+def get_sonar_readings(x, y, angle):
+    readings = []
+    """
+    Instead of using a grid of boolean(ish) sensors, sonar readings
+    simply return N "distance" readings, one for each sonar
+    we're simulating. The distance is a count of the first non-zero
+    reading starting at the object. For instance, if the fifth sensor
+    in a sonar "arm" is non-zero, then that arm returns a distance of 5.
+    """
+    # Make our arms.
+    cos10 = 10 * math.cos(angle)
+    arm = make_sonar_arm(x, y)
+    side_arm = make_sonar_arm(x - cos10, y - cos10, distance=10)
+
+    # Rotate them and get readings.
+    for i in range(NUM_INPUTS):
+        offset = -1 + (2 / NUM_INPUTS) * i
+        readings.append(get_arm_distance(arm, x, y, angle, offset))
+
+    # Right and left ultrasonic sensors
+    min_left = math.inf
+    min_right = math.inf
+
+    for i in range(NUM_INPUTS // 4):
+        delta = -0.6 + (1.2 / (NUM_INPUTS // 4)) * i
+        pi2 = (math.pi / 2)
+
+        left = get_arm_distance(side_arm, x - cos10, y - cos10, angle + pi2, delta)
+        right = get_arm_distance(side_arm, x - cos10, y - cos10, angle - pi2, delta)
+
+        if left < min_left:  min_left = left
+        if right < min_right: min_right = right
+
+    # readings.append(min_left)
+    # readings.append(min_right)
+
+    if show_sensors:
+        pygame.display.update()
+
+    return readings
 
 
 class GameState:
@@ -45,27 +165,21 @@ class GameState:
         self.old_reward = 0
         self.new_reward = 0
 
-        # Create the car.
-        self.create_car(100, 100, 0.5)
+        self.create_car(100, 100, 0.5)  # Create the car.
 
-        # Record steps.
-        self.num_steps = 0
+        self.num_steps = 0  # Record steps.
 
         # Create walls.
+        w30 = width + 30
+        h30 = height + 30
+
         static = [
-            pymunk.Segment(
-                self.space.static_body,
-                (-30, -30), (-30, height+30), 1),
-            pymunk.Segment(
-                self.space.static_body,
-                (-30, height + 30), (width + 30, height + 30), 1),
-            pymunk.Segment(
-                self.space.static_body,
-                (width+30, height+30), (width+30, -30), 1),
-            pymunk.Segment(
-                self.space.static_body,
-                (-30, -30), (width+30, -30), 1)
+            pymunk.Segment(self.space.static_body, (-30, -30), (-30, h30), 1),
+            pymunk.Segment(self.space.static_body, (-30, h30), (w30, h30), 1),
+            pymunk.Segment(self.space.static_body, (w30, h30), (w30, -30), 1),
+            pymunk.Segment(self.space.static_body, (-30, -30), (w30, -30), 1)
         ]
+
         for s in static:
             s.friction = 1.
             s.group = 1
@@ -81,47 +195,54 @@ class GameState:
         for obj in self.obstacles:
             self.space.remove(obj[0])
             self.space.remove(obj[1])
+
         self.obstacles = []
         obstacle_count = random.randint(5, 10)
+
         for i in range(obstacle_count):
             x = random.randint(150, width - 150)
             y = random.randint(150, height - 150)
             r = random.randint(20, 70)
             self.obstacles.append(self.create_obstacle(x, y, r))
-            space.debug_draw(draw_options)
+
+        space.debug_draw(draw_options)
 
     def create_obstacle(self, x, y, r):
         c_body = pymunk.Body(body_type=pymunk.Body.DYNAMIC, mass=100, moment=10000)
+
         a = random.randint(50, 200)
         b = random.randint(50, 150)
-        if random.randint(0, 2) == 0:
-            c_shape = pymunk.Circle(c_body, r)
-        else:
-            c_shape = pymunk.Poly(c_body, [(a/2, -b/2), (a/2, b/2), (-a/2, b/2), (-a/2, -b/2)])
+
+        c_shape = pymunk.Circle(c_body, r) if random.randint(0, 2) == 0 \
+            else  pymunk.Poly(c_body, points(a / 2, b / 2))
+
         c_shape.elasticity = 1.0
         c_body.position = x, y
-        c_shape.color = THECOLORS["grey"]
+        c_shape.color = (40, 40, 40)
+
         self.space.add(c_body, c_shape)
+
         return c_body, c_shape
 
     def create_car(self, x, y, r):
         inertia = pymunk.moment_for_box(100000, [30, 20])
+
         self.car_body = pymunk.Body(1, inertia)
         self.car_body.position = x, y
-        # self.car_shape = pymunk.Circle(self.car_body, 25)
-        self.car_shape = pymunk.Poly(self.car_body, [(15, -10), (15, 10), (-15, 10), (-15, -10)])
-        # self.car_shape = pymunk.Poly(self.car_body, [(30, 0), (30, 20), (0, 20), (0, 0)])
+
+        self.car_shape = pymunk.Poly(self.car_body, points(20, -10))
+
         self.car_shape.color = THECOLORS["white"]
         self.car_shape.elasticity = 1.0
+
         self.car_body.angle = r
-        self.driving_direction = Vec2d(1, 0).rotated(self.car_body.angle)
+
+        self.car_direction = Vec2d(1, 0).rotated(self.car_body.angle)
         self.space.add(self.car_body, self.car_shape)
 
     def frame_step(self, action):
-        if action == 0:  # Turn left.
-            self.car_body.angle -= .1
-        elif action == 1:  # Turn right.
-            self.car_body.angle += .1
+        if   action == 0:  self.car_body.angle -= .1  # Turn Left
+        elif action == 1:  self.car_body.angle += .1  # Turn Right
 
         # Move obstacles.
         if self.num_steps % 100 == 0:
@@ -135,24 +256,31 @@ class GameState:
         # Update the screen and stuff.
         screen.fill(THECOLORS["black"])
         space.debug_draw(draw_options)
-        self.space.step(1./10)
+        self.space.step(1. / 10)
 
-        clock.tick(25)
+        clock.tick(55)
 
         # Get the current location and the readings there.
         x, y = self.car_body.position
-        readings = self.get_sonar_readings(x, y, self.car_body.angle)
+        readings = get_sonar_readings(x, y, self.car_body.angle)
+
         # add direction angle
         cos_alfa = math.cos(self.car_body.angle - self.given_angle)
         readings.append(cos_alfa)
+
         # car direction
-        readings.append(self.car_body.angle % 2*math.pi)
-        readings.append((x-old_x)/math.sqrt(math.pow(x-old_x, 2) + math.pow(y-old_y, 2)))
-        readings.append((y-old_y)/math.sqrt(math.pow(x-old_x, 2) + math.pow(y-old_y, 2)))
+        d = ((x - old_x) ** 2 + (y - old_y) ** 2) ** .5
+        readings.append(self.car_body.angle % 2 * math.pi)
+        readings.append((x - old_x) / d)
+        readings.append((y - old_y) / d)
+
         # given direction
-        readings.append(self.given_angle % 2*math.pi)
-        readings.append(self.given_x / math.sqrt(math.pow(self.given_x, 2) + math.pow(self.given_y, 2)))
-        readings.append(self.given_y / math.sqrt(math.pow(self.given_x, 2) + math.pow(self.given_y, 2)))
+        delta = (self.given_x ** 2 + self.given_y ** 2) ** .5
+
+        readings.append(self.given_angle % 2 * math.pi)
+        readings.append(self.given_x / delta)
+        readings.append(self.given_y / delta)
+
         # car position
         # readings.append(self.car_body.position.x)
         # readings.append(self.car_body.position.y)
@@ -161,27 +289,26 @@ class GameState:
         events = pygame.event.get()
         for event in events:
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    self.given_angle += math.pi / 8
-                if event.key == pygame.K_RIGHT:
-                    self.given_angle -= math.pi / 8
-                self.given_angle %= 2*math.pi
+                if event.key == pygame.K_LEFT:   self.given_angle += math.pi / 8
+                if event.key == pygame.K_RIGHT:  self.given_angle -= math.pi / 8
+
+                self.given_angle %= 2 * math.pi
                 self.given_x = math.cos(self.given_angle)
                 self.given_y = -math.sin(self.given_angle)
 
         if random_press and self.num_steps % 300 == 0:
             n = random.randint(0, 2)
-            if n == 0:
-                self.given_angle += math.pi / 8
-            if n == 1:
-                self.given_angle -= math.pi / 8
+
+            if n == 0: self.given_angle += math.pi / 8
+            if n == 1: self.given_angle -= math.pi / 8
+
             self.given_angle %= 2 * math.pi
-            self.given_x = math.cos(self.given_angle)
-            self.given_y = -math.sin(self.given_angle)
+            self.given_x = + math.cos(self.given_angle)
+            self.given_y = - math.sin(self.given_angle)
 
         # Set the reward.
         # Car crashed when any reading == 1
-        if self.car_is_crashed(readings):
+        if car_is_crashed(readings):
             self.crashed = True
             reward = -500
             self.recover_from_crash(driving_direction)
@@ -190,7 +317,7 @@ class GameState:
         else:
             # Higher readings are better, so return the sum.
             self.old_reward = self.new_reward
-            self.new_reward = 10 * math.pow(cos_alfa, 3)
+            self.new_reward = 10 * cos_alfa ** 3
             reward = self.new_reward - self.old_reward
             if reward > 0 and cos_alfa > 0.95:
                 reward += 5 * cos_alfa
@@ -230,12 +357,6 @@ class GameState:
             direction = Vec2d(1, 0).rotated(self.car_body.angle + random.randint(-2, 2))
             obstacle[0].velocity = speed * direction
 
-    def car_is_crashed(self, readings):
-        for i in range(40):
-            if readings[i] == 1:
-                return True
-        return False
-
     def recover_from_crash(self, driving_direction):
         """
         We hit something, so recover.
@@ -248,117 +369,11 @@ class GameState:
                 self.car_body.angle += .2  # Turn a little.
                 screen.fill(THECOLORS["black"])
                 space.debug_draw(draw_options)
-                self.space.step(1./10)
+                self.space.step(1. / 10)
                 if draw_screen:
                     pygame.display.flip()
-                clock.tick(25)
+                clock.tick(55)
 
-    def sum_readings(self, readings):
-        """Sum the number of non-zero readings."""
-        tot = 0
-        for i in readings:
-            tot += i
-        return tot
-
-    def get_sonar_readings(self, x, y, angle):
-        readings = []
-        """
-        Instead of using a grid of boolean(ish) sensors, sonar readings
-        simply return N "distance" readings, one for each sonar
-        we're simulating. The distance is a count of the first non-zero
-        reading starting at the object. For instance, if the fifth sensor
-        in a sonar "arm" is non-zero, then that arm returns a distance of 5.
-        """
-        # Make our arms.
-        arm = self.make_sonar_arm(x, y)
-        side_arm = self.make_sonar_arm(x - 10*math.cos(angle), y - 10*math.sin(angle), distance=10)
-
-        # Rotate them and get readings.
-        for i in range(NUM_INPUTS):
-            offset = -1 + (2 / NUM_INPUTS) * i
-            readings.append(self.get_arm_distance(arm, x, y, angle, offset))
-
-        # Right and left ultrasonic sensors
-        min_left = math.inf
-        min_right = math.inf
-        for i in range(NUM_INPUTS//4):
-            offset = -0.6 + (1.2 / (NUM_INPUTS//4)) * i
-            left = self.get_arm_distance(side_arm, x - 10*math.cos(angle), y - 10*math.sin(angle), angle + math.pi / 2, offset)
-            right = self.get_arm_distance(side_arm, x - 10*math.cos(angle), y - 10*math.sin(angle), angle - math.pi / 2, offset)
-            if left < min_left:
-                min_left = left
-            if right < min_right:
-                min_right = right
-
-        readings.append(min_left)
-        readings.append(min_right)
-
-        if show_sensors:
-            pygame.display.update()
-
-        return readings
-
-    def get_arm_distance(self, arm, x, y, angle, offset):
-        # Used to count the distance.
-        i = 0
-
-        # Look at each point and see if we've hit something.
-        for point in arm:
-            i += 1
-
-            # Move the point to the right spot.
-            rotated_p = self.get_rotated_point(
-                x, y, point[0], point[1], angle + offset
-            )
-
-            # Check if we've hit something. Return the current i (distance)
-            # if we did.
-            if rotated_p[0] <= 0 or rotated_p[1] <= 0 \
-                    or rotated_p[0] >= width or rotated_p[1] >= height:
-                return len(arm)  # Sensor is off the screen.
-            else:
-                obs = screen.get_at(rotated_p)
-                if self.get_track_or_not(obs) != 0:
-                    return i
-
-            if show_sensors:
-                # if straight
-                if len(arm) > 10:
-                    color = (34, 122, 172)
-                else:
-                    color = (78, 127, 80)
-
-                pygame.draw.circle(screen, color, (rotated_p), 1)
-
-        # Return the distance for the arm.
-        return i
-
-    def make_sonar_arm(self, x, y, distance=50):
-        spread = 12  # Default spread.
-        distance_from_car = 10  # Gap before first sensor.
-        arm_points = []
-        # Make an arm. We build it flat because we'll rotate it about the
-        # center later.
-        for i in range(1, distance):
-            arm_points.append((distance_from_car + x + (spread * i), y))
-
-        return arm_points
-
-    def get_rotated_point(self, x_1, y_1, x_2, y_2, radians):
-        # Rotate x_2, y_2 around x_1, y_1 by angle.
-        x_change = (x_2 - x_1) * math.cos(radians) + \
-            (y_2 - y_1) * math.sin(radians)
-        y_change = (y_1 - y_2) * math.cos(radians) - \
-            (x_1 - x_2) * math.sin(radians)
-        new_x = x_change + x_1
-        new_y = height - (y_change + y_1)
-        return int(new_x), int(new_y)
-
-    def get_track_or_not(self, reading):
-        if reading == THECOLORS['blue'] or reading == THECOLORS['orange'] or reading == THECOLORS['red'] or reading == THECOLORS['grey']:
-            return 1
-        else:
-            return 0
 
 if __name__ == "__main__":
     game_state = GameState()
