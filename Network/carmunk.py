@@ -23,7 +23,7 @@ draw_options = pymunk.pygame_util.DrawOptions(screen)
 screen.set_alpha(None)
 
 # Showing sensors and redrawing slows things down.
-show_sensors = False
+show_sensors = True
 draw_screen = True
 random_press = False
 
