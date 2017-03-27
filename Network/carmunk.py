@@ -133,10 +133,10 @@ def get_sonar_readings(x, y, angle):
         delta = -0.6 + (1.2 / (NUM_INPUTS // 4)) * i
         pi2 = (math.pi / 2)
 
-        left = get_arm_distance(side_arm, x - cos10, y - cos10, angle + pi2, delta)
+        left  = get_arm_distance(side_arm, x - cos10, y - cos10, angle + pi2, delta)
         right = get_arm_distance(side_arm, x - cos10, y - cos10, angle - pi2, delta)
 
-        if left < min_left:  min_left = left
+        if left  < min_left:  min_left  = left
         if right < min_right: min_right = right
 
     # readings.append(min_left)
