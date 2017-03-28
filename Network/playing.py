@@ -54,7 +54,7 @@ def play(session, state, prediction):
             cos_angle = dx * fx + dy * fy
             sin_angle = dx * fy - fx * dy
 
-            if cos_angle < 0.999:
+            if cos_angle < 0.998:
                 action = 1 if sin_angle > 0 else 0
             else: action = 2
 
