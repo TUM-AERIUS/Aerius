@@ -33,7 +33,7 @@ def points(a, b):
 
 
 def car_is_crashed(readings):
-    for i in range(40):
+    for i in range(NUM_INPUTS + 2):
         if readings[i] == 1: return True
     return False
 
@@ -73,7 +73,7 @@ def get_rotated_point(x_1, y_1, x_2, y_2, radians):
 
 
 def get_track_or_not(reading):
-    colors = [THECOLORS['blue'], THECOLORS['orange'], THECOLORS['red'], (40, 40, 40)]
+    colors = [THECOLORS['blue'], THECOLORS['orange'], THECOLORS['red'], THECOLORS['grey']]
     return 1 if reading in colors else 0
 
 
@@ -117,8 +117,9 @@ def get_sonar_readings(x, y, angle):
     """
     # Make our arms.
     cos10 = 10 * math.cos(angle)
+    sin10 = 10 * math.sin(angle)
     arm = make_sonar_arm(x, y)
-    side_arm = make_sonar_arm(x - cos10, y - cos10, distance=10)
+    side_arm = make_sonar_arm(x - cos10, y - sin10, distance=10)
 
     # Rotate them and get readings.
     for i in range(NUM_INPUTS):
@@ -133,14 +134,14 @@ def get_sonar_readings(x, y, angle):
         delta = -0.6 + (1.2 / (NUM_INPUTS // 4)) * i
         pi2 = (math.pi / 2)
 
-        left = get_arm_distance(side_arm, x - cos10, y - cos10, angle + pi2, delta)
-        right = get_arm_distance(side_arm, x - cos10, y - cos10, angle - pi2, delta)
+        left  = get_arm_distance(side_arm, x - cos10, y - sin10, angle + pi2, delta)
+        right = get_arm_distance(side_arm, x - cos10, y - sin10, angle - pi2, delta)
 
-        if left < min_left:  min_left = left
+        if left  < min_left:  min_left  = left
         if right < min_right: min_right = right
 
-    # readings.append(min_left)
-    # readings.append(min_right)
+    readings.append(min_left)
+    readings.append(min_right)
 
     if show_sensors:
         pygame.display.update()
@@ -218,19 +219,19 @@ class GameState:
 
         c_shape.elasticity = 1.0
         c_body.position = x, y
-        c_shape.color = (40, 40, 40)
+        c_shape.color = THECOLORS["grey"]
 
         self.space.add(c_body, c_shape)
 
         return c_body, c_shape
 
     def create_car(self, x, y, r):
-        inertia = pymunk.moment_for_box(100000, [30, 20])
+        inertia = pymunk.moment_for_box(100000, [40, 20])
 
         self.car_body = pymunk.Body(1, inertia)
         self.car_body.position = x, y
 
-        self.car_shape = pymunk.Poly(self.car_body, points(20, -10))
+        self.car_shape = pymunk.Poly(self.car_body, points(20, 10))
 
         self.car_shape.color = THECOLORS["white"]
         self.car_shape.elasticity = 1.0
@@ -241,8 +242,8 @@ class GameState:
         self.space.add(self.car_body, self.car_shape)
 
     def frame_step(self, action):
-        if   action == 0:  self.car_body.angle -= .1  # Turn Left
-        elif action == 1:  self.car_body.angle += .1  # Turn Right
+        if   action == 0:  self.car_body.angle -= .15  # Turn Left
+        elif action == 1:  self.car_body.angle += .15  # Turn Right
 
         # Move obstacles.
         if self.num_steps % 100 == 0:
@@ -270,7 +271,7 @@ class GameState:
 
         # car direction
         d = ((x - old_x) ** 2 + (y - old_y) ** 2) ** .5
-        readings.append(self.car_body.angle % 2 * math.pi)
+        readings.append(self.car_body.angle % (2 * math.pi))
         readings.append((x - old_x) / d)
         readings.append((y - old_y) / d)
 
@@ -316,11 +317,14 @@ class GameState:
         #     reward =
         else:
             # Higher readings are better, so return the sum.
-            self.old_reward = self.new_reward
-            self.new_reward = 10 * cos_alfa ** 3
-            reward = self.new_reward - self.old_reward
-            if reward > 0 and cos_alfa > 0.95:
-                reward += 5 * cos_alfa
+            if random_press:
+                self.old_reward = self.new_reward
+                self.new_reward = 10 * (cos_alfa ** 3)
+                reward = self.new_reward - self.old_reward
+                if reward > 0 and cos_alfa > 0.95:
+                    reward += 5 * cos_alfa
+            else:
+                reward = 0
 
         self.num_steps += 1
 
