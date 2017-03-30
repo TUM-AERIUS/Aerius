@@ -7,10 +7,10 @@ import picamera
 # Connect a client socket to my_server:8000 (change my_server to the
 # hostname of your server)
 client_socket = socket.socket()
-client_socket.connect(('my_server', 8000))
+client_socket.connect(('169.254.251.208', 8000))
 
 # Make a file-like object out of the connection
-connection = client_socket.makefile('wb')
+connection = client_socket.makefile('rwb')
 try:
     with picamera.PiCamera() as camera:
         camera.resolution = (640, 480)
@@ -25,7 +25,7 @@ try:
         start = time.time()
         stream = io.BytesIO()
 
-        data = struct.unpack('<c', connection.read(struct.calcsize('<c')))[0]
+        data = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
 
         for foo in camera.capture_continuous(stream, 'png'):
             # Write the length of the capture to the stream and flush to
@@ -42,7 +42,7 @@ try:
             stream.seek(0)
             stream.truncate()
 
-            data = struct.unpack('<c', connection.read(struct.calcsize('<c')))[0]
+            data = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
             if data == "e":
                 break
 
