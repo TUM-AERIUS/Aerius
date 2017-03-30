@@ -12,7 +12,7 @@ server_socket.bind(('0.0.0.0', 8000))
 server_socket.listen(0)
 
 # Accept a single connection and make a file-like object out of it
-connection = server_socket.accept()[0].makefile('rb')
+connection = server_socket.accept()[0].makefile('wb')
 try:
 
     camera = picamera.PiCamera()
@@ -22,7 +22,7 @@ try:
     time.sleep(2)
 
     while True:
-        connection.write("i")
+        connection.write(struct.pack('<c', 'i'))
         connection.flush()
 
         stream = io.BytesIO()
@@ -32,7 +32,8 @@ try:
         # length is zero, quit the loop
         image_len = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
 
-        if not image_len:  break
+        if not image_len:
+            break
 
         # Construct a stream to hold the image data and read the image
         # data from the connection

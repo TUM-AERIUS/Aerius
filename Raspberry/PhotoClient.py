@@ -25,7 +25,7 @@ try:
         start = time.time()
         stream = io.BytesIO()
 
-        data = connection.read()
+        data = struct.unpack('<c', connection.read(struct.calcsize('<c')))[0]
 
         for foo in camera.capture_continuous(stream, 'png'):
             # Write the length of the capture to the stream and flush to
@@ -42,7 +42,7 @@ try:
             stream.seek(0)
             stream.truncate()
 
-            data = connection.read()
+            data = struct.unpack('<c', connection.read(struct.calcsize('<c')))[0]
             if data == "e":
                 break
 
