@@ -15,35 +15,45 @@ server_socket.listen(0)
 connection = server_socket.accept()[0].makefile('rb')
 try:
 
-    with picamera.PiCamera() as camera:
-        camera.resolution = (640, 480)
-        # Start a preview and let the camera warm up for 2 seconds
-        camera.start_preview()
-        time.sleep(2)
+    camera = picamera.PiCamera()
+    camera.resolution = (640, 480)
+    # Start a preview and let the camera warm up for 2 seconds
+    camera.start_preview()
+    time.sleep(2)
 
-        while True:
-            connection.write("i")
-            connection.flush()
+    while True:
+        connection.write("i")
+        connection.flush()
 
-            # Read the length of the image as a 32-bit unsigned int. If the
-            # length is zero, quit the loop
-            image_len = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
+        stream = io.BytesIO()
+        camera.capture(stream, "png")
 
-            if not image_len:  break
+        # Read the length of the image as a 32-bit unsigned int. If the
+        # length is zero, quit the loop
+        image_len = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
 
-            # Construct a stream to hold the image data and read the image
-            # data from the connection
-            image_stream = io.BytesIO()
-            image_stream.write(connection.read(image_len))
+        if not image_len:  break
 
-            # Rewind the stream, open it as an image with PIL and do some
-            # processing on it
-            image_stream.seek(0)
-            image = Image.open(image_stream)
-            print('Image is %dx%d' % image.size)
-            image.verify()
-            print('Image is verified')
+        # Construct a stream to hold the image data and read the image
+        # data from the connection
+        image_stream = io.BytesIO()
+        image_stream.write(connection.read(image_len))
+
+        # Rewind the stream, open it as an image with PIL and do some
+        # processing on it
+        image_stream.seek(0)
+        imageLeft = Image.open(image_stream)
+        print('Image is %dx%d' % imageLeft.size)
+        imageLeft.verify()
+        print('Image left is verified')
+
+        stream.seek(0)
+        imageRight = Image.open(stream)
+        print('Image is %dx%d' % imageRight.size)
+        imageRight.verify()
+        print('Image right is verified')
 
 finally:
+    camera.close()
     connection.close()
     server_socket.close()
