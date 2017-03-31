@@ -30,6 +30,7 @@ corners2 = []
 obj = np.zeros((6*7, 3), np.float32)
 obj[:, :2] = np.mgrid[0:7, 0:6].T.reshape(-1, 2)
 
+# TODO: change here to use the PhotoServer as a client to get photos
 vidStreamL = cv2.VideoCapture(0)  # index of your camera
 vidStreamR = cv2.VideoCapture(1)  # index of your camera
 success = 0
@@ -101,16 +102,22 @@ map2x, map2y = cv2.initUndistortRectifyMap(cameraMatrix2, distCoeffs2, R2, P2, (
 
 print("Undistort complete\n")
 
-while True:
-    retL, img1 = vidStreamL.read()
-    retR, img2 = vidStreamR.read()
-    imgU1 = np.zeros((height, width, 3), np.uint8)
-    imgU1 = cv2.remap(img1, map1x, map1y, cv2.INTER_LINEAR, imgU1, cv2.BORDER_CONSTANT, 0)
-    imgU2 = cv2.remap(img2, map2x, map2y, cv2.INTER_LINEAR)
-    cv2.imshow("imageL", img1)
-    cv2.imshow("imageR", img2)
-    cv2.imshow("image1L", imgU1)
-    cv2.imshow("image2R", imgU2)
-    k = cv2.waitKey(5)
-    if k == 27:
-        break
+# while True:
+#     retL, img1 = vidStreamL.read()
+#     retR, img2 = vidStreamR.read()
+#     imgU1 = np.zeros((height, width, 3), np.uint8)
+#     imgU1 = cv2.remap(img1, map1x, map1y, cv2.INTER_LINEAR, imgU1, cv2.BORDER_CONSTANT, 0)
+#     imgU2 = cv2.remap(img2, map2x, map2y, cv2.INTER_LINEAR)
+#     cv2.imshow("imageL", img1)
+#     cv2.imshow("imageR", img2)
+#     cv2.imshow("image1L", imgU1)
+#     cv2.imshow("image2R", imgU2)
+#     k = cv2.waitKey(5)
+#     if k == 27:
+#         break
+
+# http://docs.opencv.org/3.0-beta/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html#reprojectimageto3d
+
+# TODO: use StereoMatcher::compute to get the disparity matrix
+
+# TODO: reprojectImageTo3D mathod to get the the points in 3d space, needs disparity and other values we got from calibration

@@ -6,8 +6,8 @@ import picamera
 import time
 
 # Connect to StereoCamera.py
-# cameraSocket = socket.socket()
-# cameraSocket.connect(('localhost', 8100))
+cameraSocket = socket.socket()
+cameraSocket.connect(('localhost', 8100))
 
 # Start a socket listening for connections on 0.0.0.0:8000 (0.0.0.0 means
 # all interfaces)
