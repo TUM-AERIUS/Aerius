@@ -3,6 +3,7 @@ import cv2
 import socket
 import struct
 import io
+from matplotlib import pyplot as plt
 
 
 def getStereoImages(connection):
@@ -27,12 +28,12 @@ def getStereoImages(connection):
     imageRightStream.seek(0)
     # construct a numpy array from the stream
     data = np.fromstring(imageLeftStream.getvalue(), dtype=np.uint8)
-    # "Decode" the image from the array, preserving colour
+    # "Decode" the image from the array, grayscale image
     # bgr order
-    imageLeft = cv2.imdecode(data, 1)
+    imageLeft = cv2.imdecode(data, 0)
 
     data = np.fromstring(imageRightStream.getvalue(), dtype=np.uint8)
-    imageRight = cv2.imdecode(data, 1)
+    imageRight = cv2.imdecode(data, 0)
 
     return imageLeft, imageRight
 
@@ -139,22 +140,30 @@ map2x, map2y = cv2.initUndistortRectifyMap(cameraMatrix2, distCoeffs2, R2, P2, (
 print("Undistort complete\n")
 
 # Testing, delete if correct
-while True:
-    img1, img2 = getStereoImages(photoConnection)
-    imgU1 = np.zeros((height, width, 3), np.uint8)
-    imgU1 = cv2.remap(img1, map1x, map1y, cv2.INTER_LINEAR, imgU1, cv2.BORDER_CONSTANT, 0)
-    imgU2 = cv2.remap(img2, map2x, map2y, cv2.INTER_LINEAR)
-    cv2.imshow("imageL", img1)
-    cv2.imshow("imageR", img2)
-    cv2.imshow("image1L", imgU1)
-    cv2.imshow("image2R", imgU2)
-    k = cv2.waitKey(5)
-    if k == 27:
-        break
+# while True:
+#     img1, img2 = getStereoImages(photoConnection)
+#     imgU1 = np.zeros((height, width, 3), np.uint8)
+#     imgU1 = cv2.remap(img1, map1x, map1y, cv2.INTER_LINEAR, imgU1, cv2.BORDER_CONSTANT, 0)
+#     imgU2 = cv2.remap(img2, map2x, map2y, cv2.INTER_LINEAR)
+#     cv2.imshow("imageL", img1)
+#     cv2.imshow("imageR", img2)
+#     cv2.imshow("image1L", imgU1)
+#     cv2.imshow("image2R", imgU2)
+#     k = cv2.waitKey(5)
+#     if k == 27:
+#         break
 # End of test
 
 # http://docs.opencv.org/3.0-beta/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html#reprojectimageto3d
+# use StereoMatcher::compute to get the disparity matrix
+img1, img2 = getStereoImages(photoConnection)
+imgU1 = np.zeros((height, width, 3), np.uint8)
+imgU1 = np.zeros((height, width, 3), np.uint8)
+imgU1 = cv2.remap(img1, map1x, map1y, cv2.INTER_LINEAR, imgU1, cv2.BORDER_CONSTANT, 0)
+imgU2 = cv2.remap(img2, map2x, map2y, cv2.INTER_LINEAR)
+disparity = cv2.StereoBM.compute(imgU1, imgU2)
+# Disparity picture for testing
+plt.imshow(disparity, 'gray')
 
-# TODO: use StereoMatcher::compute to get the disparity matrix
-
-# TODO: reprojectImageTo3D mathod to get the the points in 3d space, needs disparity and other values we got from calibration
+# get the the points in 3d space, needs disparity and other values we got from calibration
+image3D = cv2.reprojectImageTo3D(disparity, Q)
