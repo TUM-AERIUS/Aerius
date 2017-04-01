@@ -31,6 +31,8 @@ obj = np.zeros((6*7, 3), np.float32)
 obj[:, :2] = np.mgrid[0:7, 0:6].T.reshape(-1, 2)
 
 # TODO: change here to use the PhotoServer as a client to get photos
+photoConnection.send(1)
+
 vidStreamL = cv2.VideoCapture(0)  # index of your camera
 vidStreamR = cv2.VideoCapture(1)  # index of your camera
 success = 0
