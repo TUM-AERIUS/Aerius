@@ -1,13 +1,47 @@
 import numpy as np
 import cv2
 import socket
+import struct
+import io
+
+
+def getStereoImages(connection):
+    connection.write(struct.pack('<L', 1))
+    connection.flush()
+
+    # Get lengths
+    imageLeftLength = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
+    imageRightLength = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
+
+    # Get images
+    # https://picamera.readthedocs.io/en/release-1.10/recipes1.html
+    # streams are in jpeg format
+    # we have to reformat for openCV to be able to read them
+    imageLeftStream = io.BytesIO()
+    imageRightStream = io.BytesIO()
+
+    imageLeftStream.write(connection.read(imageLeftLength))
+    imageRightStream.write(connection.read(imageRightLength))
+
+    imageLeftStream.seek(0)
+    imageRightStream.seek(0)
+    # construct a numpy array from the stream
+    data = np.fromstring(imageLeftStream.getvalue(), dtype=np.uint8)
+    # "Decode" the image from the array, preserving colour
+    # bgr order
+    imageLeft = cv2.imdecode(data, 1)
+
+    data = np.fromstring(imageRightStream.getvalue(), dtype=np.uint8)
+    imageRight = cv2.imdecode(data, 1)
+
+    return imageLeft, imageRight
 
 # start server for PhotoServer.py
 photoSocket = socket.socket()
 photoSocket.bind(('localhost', 8100))
 photoSocket.listen(0)
 
-photoConnection, address = photoSocket.accept()
+photoConnection = photoSocket.accept()[0].makefile("rwb")
 
 numBoards = 30  # how many boards would you like to find
 board_w = 7
@@ -30,11 +64,10 @@ corners2 = []
 obj = np.zeros((6*7, 3), np.float32)
 obj[:, :2] = np.mgrid[0:7, 0:6].T.reshape(-1, 2)
 
-# TODO: change here to use the PhotoServer as a client to get photos
-photoConnection.send(1)
+leftImage, rightImage = getStereoImages(photoConnection)
 
-vidStreamL = cv2.VideoCapture(0)  # index of your camera
-vidStreamR = cv2.VideoCapture(1)  # index of your camera
+# vidStreamL = cv2.VideoCapture(0)  # index of your camera
+# vidStreamR = cv2.VideoCapture(1)  # index of your camera
 success = 0
 k = 0
 found1 = False
@@ -42,9 +75,10 @@ found2 = False
 
 while success < numBoards:
 
-    retL, img1 = vidStreamL.read()
+    img1, img2 = getStereoImages(photoConnection)
+    # retL, img1 = vidStreamL.read()
     height, width, depth = img1.shape
-    retR, img2 = vidStreamR.read()
+    # retR, img2 = vidStreamR.read()
     #resize(img1, img1, Size(320, 280));
     #resize(img2, img2, Size(320, 280));
     gray1 = cv2.cvtColor(img1,cv2.COLOR_BGR2GRAY)
@@ -71,9 +105,9 @@ while success < numBoards:
         break
     if k == 32 and found1 != 0 and found2 != 0:
 
-        imagePoints1.append(corners1);
-        imagePoints2.append(corners2);
-        object_points.append(obj);
+        imagePoints1.append(corners1)
+        imagePoints2.append(corners2)
+        object_points.append(obj)
         print("Corners stored\n")
         success += 1
 
@@ -104,19 +138,20 @@ map2x, map2y = cv2.initUndistortRectifyMap(cameraMatrix2, distCoeffs2, R2, P2, (
 
 print("Undistort complete\n")
 
-# while True:
-#     retL, img1 = vidStreamL.read()
-#     retR, img2 = vidStreamR.read()
-#     imgU1 = np.zeros((height, width, 3), np.uint8)
-#     imgU1 = cv2.remap(img1, map1x, map1y, cv2.INTER_LINEAR, imgU1, cv2.BORDER_CONSTANT, 0)
-#     imgU2 = cv2.remap(img2, map2x, map2y, cv2.INTER_LINEAR)
-#     cv2.imshow("imageL", img1)
-#     cv2.imshow("imageR", img2)
-#     cv2.imshow("image1L", imgU1)
-#     cv2.imshow("image2R", imgU2)
-#     k = cv2.waitKey(5)
-#     if k == 27:
-#         break
+# Testing, delete if correct
+while True:
+    img1, img2 = getStereoImages(photoConnection)
+    imgU1 = np.zeros((height, width, 3), np.uint8)
+    imgU1 = cv2.remap(img1, map1x, map1y, cv2.INTER_LINEAR, imgU1, cv2.BORDER_CONSTANT, 0)
+    imgU2 = cv2.remap(img2, map2x, map2y, cv2.INTER_LINEAR)
+    cv2.imshow("imageL", img1)
+    cv2.imshow("imageR", img2)
+    cv2.imshow("image1L", imgU1)
+    cv2.imshow("image2R", imgU2)
+    k = cv2.waitKey(5)
+    if k == 27:
+        break
+# End of test
 
 # http://docs.opencv.org/3.0-beta/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html#reprojectimageto3d
 

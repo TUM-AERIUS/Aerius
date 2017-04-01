@@ -28,7 +28,7 @@ try:
         data = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
 
         # openCv represents images in bgr format as NumPy arrays
-        for foo in camera.capture_continuous(stream, format="png"):
+        for foo in camera.capture_continuous(stream, format="jpeg"):
             # Write the length of the capture to the stream and flush to
             # ensure it actually gets sent
             connection.write(struct.pack('<L', stream.tell()))

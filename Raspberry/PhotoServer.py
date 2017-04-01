@@ -8,6 +8,7 @@ import time
 # Connect to StereoCamera.py
 cameraSocket = socket.socket()
 cameraSocket.connect(('localhost', 8100))
+cameraSocket = cameraSocket.makefile("rwb")
 
 # Start a socket listening for connections on 0.0.0.0:8000 (0.0.0.0 means
 # all interfaces)
@@ -21,7 +22,6 @@ try:
     # http://www.pyimagesearch.com/2015/03/30/accessing-the-raspberry-pi-camera-with-opencv-and-python/
     camera = picamera.PiCamera()
     camera.resolution = (640, 480)
-    rawCapture = picamera.PiRGBArray(camera)
 
     # Start a preview and let the camera warm up for 2 seconds
     camera.start_preview()
@@ -35,8 +35,8 @@ try:
         connection.write(struct.pack('<L', 1))
         connection.flush()
 
-        stream = io.BytesIO()
-        camera.capture(stream, format="png")
+        leftImageStream = io.BytesIO()
+        camera.capture(leftImageStream, format="jpeg")
         # camera.capture(rawCapture, format="bgr")
         # rawCapture.array
 
@@ -49,24 +49,34 @@ try:
 
         # Construct a stream to hold the image data and read the image
         # data from the connection
-        image_stream = io.BytesIO()
-        image_stream.write(connection.read(image_len))
+        rightImageStream = io.BytesIO()
+        rightImageStream.write(connection.read(image_len))
+
+        # Write images to camera socket
+        # Protocol: imageLeftLength, imageRightLength, imageLeft, imageRight
+        cameraSocket.write(struct.pack('<L', leftImageStream.tell()))
+        cameraSocket.write(struct.pack('<L', rightImageStream.tell()))
+        cameraSocket.write(leftImageStream.read())
+        cameraSocket.write(rightImageStream.read())
+        cameraSocket.flush()
+
 
         # Rewind the stream, open it as an image with PIL and do some
         # processing on it
-        image_stream.seek(0)
-        imageLeft = Image.open(image_stream)
-        print('Image is %dx%d' % imageLeft.size)
-        imageLeft.verify()
-        print('Image left is verified')
-
-        stream.seek(0)
-        imageRight = Image.open(stream)
-        print('Image is %dx%d' % imageRight.size)
-        imageRight.verify()
-        print('Image right is verified')
+        # image_stream.seek(0)
+        # imageLeft = Image.open(image_stream)
+        # print('Image is %dx%d' % imageLeft.size)
+        # imageLeft.verify()
+        # print('Image left is verified')
+        #
+        # stream.seek(0)
+        # imageRight = Image.open(stream)
+        # print('Image is %dx%d' % imageRight.size)
+        # imageRight.verify()
+        # print('Image right is verified')
 
 finally:
     camera.close()
+    cameraSocket.close()
     connection.close()
     server_socket.close()
