@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import json
 
-imagesFolder = "stereo-photos/"
+# imagesFolder = "stereo-calibration/calib_imgs/1/"
 cameraData = "cameraData.json"
 
 numBoards = 30  # how many boards would you like to find
@@ -32,13 +32,10 @@ i = 1
 found1 = False
 found2 = False
 
-while success < numBoards and i < 10:
+while success < numBoards and i < 30:
 
     img1 = cv2.imread(imagesFolder + "left" + str(i) + ".jpg", 1)
     img2 = cv2.imread(imagesFolder + "right" + str(i) + ".jpg", 1)
-
-    img1 = cv2.resize(img1, (320, 280))
-    img2 = cv2.resize(img1, (320, 280))
 
     height, width, depth = img1.shape
 
@@ -74,14 +71,13 @@ print("Starting Calibration\n")
 cameraMatrix1 = np.array((3, 4, cv2.CV_64FC1), np.uint8)
 cameraMatrix2 = np.array((3, 4, cv2.CV_64FC1), np.uint8)
 
-distCoeffs1 = np.array((8, 1), np.uint8)
-distCoeffs2 = np.array((8, 1), np.uint8)
+distCoeffs1 = np.asarray([( -7.42497976e-03,   3.74099082e+00,  -1.81154814e-03,  3.65969196e-04)])
+distCoeffs2 = np.asarray([(  4.05620881e-03,   3.27334706e+00,  -5.00835868e-04,  1.56068477e-03)])
 
 retval, cameraMatrix1, distCoeffs1, cameraMatrix2, distCoeffs2, R, T, E, F \
-      = cv2.stereoCalibrate(object_points, imagePoints1, imagePoints2,
-                            cameraMatrix1, distCoeffs1, cameraMatrix2,
-                            distCoeffs2, (width, height))
-
+    = cv2.stereoCalibrate(object_points, imagePoints1, imagePoints2,
+                          cameraMatrix1, distCoeffs1, cameraMatrix2,
+                          distCoeffs2, (width, height))
 print("Done Calibration\n")
 print("Starting Rectification\n")
 R1 = np.zeros(shape=(3, 3))
@@ -90,16 +86,17 @@ P1 = np.zeros(shape=(3, 3))
 P2 = np.zeros(shape=(3, 3))
 Q = np.zeros(shape=(4, 4))
 
-cv2.stereoRectify(cameraMatrix1, distCoeffs1, cameraMatrix2,
-                  distCoeffs2,(width, height), R, T, R1, R2,
-                  P1, P2, Q, flags=cv2.CALIB_ZERO_DISPARITY,
-                  alpha=-1, newImageSize=(0,0))
+R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(cameraMatrix1, distCoeffs1,
+                                                  cameraMatrix2, distCoeffs2,
+                                                  (width, height), R, T, alpha=0)
 
 print("Done Rectification\n")
 print("Applying Undistort\n")
 
-map1x, map1y = cv2.initUndistortRectifyMap(cameraMatrix1, distCoeffs1, R1, P1, (width, height), cv2.CV_32FC1)
-map2x, map2y = cv2.initUndistortRectifyMap(cameraMatrix2, distCoeffs2, R2, P2, (width, height), cv2.CV_32FC1)
+map1x, map1y = cv2.initUndistortRectifyMap(cameraMatrix1, distCoeffs1,
+                                           R1, P1, (width, height), cv2.CV_32FC1)
+map2x, map2y = cv2.initUndistortRectifyMap(cameraMatrix2, distCoeffs2,
+                                           R2, P2, (width, height), cv2.CV_32FC1)
 
 print("Undistort complete\n")
 
