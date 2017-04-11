@@ -63,7 +63,7 @@ else:
     print("No calibration data found")
     sys.exit(0)
 
-Q = cameraData["Q"]
+Q = np.array(cameraData["Q"])
 
 window_size = 3
 min_disp = 16
