@@ -160,6 +160,11 @@ disparity = stereo.compute(img1, img2).astype(np.float32) / 16.0
 threshold = cv2.threshold(disparity, 0.6, 1.0, cv2.THRESH_BINARY)[1]
 morphology = cv2.morphologyEx(threshold, cv2.MORPH_OPEN, kernel)
 # Disparity picture for testing
-cv2.imshow('threshold', disparity)
-cv2.waitKey(0)
+# cv2.imshow('threshold', disparity)
+# cv2.waitKey(0)
+image3D = cv2.reprojectImageTo3D(disparity, Q)
 
+data = {"image3d.json": image3D}
+
+with open("imageDepth", "w") as f:
+    json.dump(data, f)
