@@ -137,23 +137,29 @@ if loaded == False:
     with open(cameraData, "w") as f:
         json.dump(data, f)
 
-min_disp = 16
-num_disp = 112-min_disp
+
+min_disp = 0
+num_disp = 144
 window_size = 3
 stereo = cv2.StereoSGBM_create(minDisparity = min_disp,
-    numDisparities = num_disp,
-    blockSize = 16,
-    P1 = 8*3*window_size**2,
-    P2 = 32*3*window_size**2,
-    disp12MaxDiff = 1,
-    uniquenessRatio = 10,
-    speckleWindowSize = 100,
-    speckleRange = 32
+        numDisparities = num_disp,
+        blockSize = window_size,
+        uniquenessRatio = 10,
+        speckleWindowSize = 100,
+        speckleRange = 32,
+        disp12MaxDiff = 1,
+        P1 = 8*3*window_size**2,
+        P2 = 32*3*window_size**2,
 )
+kernel = np.ones((12,12),np.uint8)
 
-img1 = cv2.imread(imagesFolder + "left" + str(1) + ".jpg", 0)
-img2 = cv2.imread(imagesFolder + "right" + str(1) + ".jpg", 0)
-disparity = stereo.compute(img1, img2)
+print("Done")
+img1 = cv2.imread(imagesFolder + "left" + str(7) + ".jpg", 0)
+img2 = cv2.imread(imagesFolder + "right" + str(7) + ".jpg", 0)
+disparity = stereo.compute(img1, img2).astype(np.float32) / 16.0
+threshold = cv2.threshold(disparity, 0.6, 1.0, cv2.THRESH_BINARY)[1]
+morphology = cv2.morphologyEx(threshold, cv2.MORPH_OPEN, kernel)
 # Disparity picture for testing
-plt.imshow(disparity, 'gray')
-plt.show()
+cv2.imshow('threshold', disparity)
+cv2.waitKey(0)
+
