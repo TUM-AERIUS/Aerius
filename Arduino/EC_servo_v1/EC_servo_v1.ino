@@ -56,9 +56,9 @@ void readSerial() {
 
   while (Serial.available()) {
     char dataChar = (char)Serial.read();
-    if (dataChar == '\n') { // end of string, value in dataString
+    if (dataChar == '.') { // end of string, value in dataString
       servo_pos = dataString.toInt();
-              
+
       dataString = "";
       return;
     } else {

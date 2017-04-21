@@ -1,8 +1,5 @@
 #include <PID_v1.h>
 #include <Wire.h>
-#include <I2Cdev.h>
-#include <MPU6050.h>
-#include <HMC5883L.h>
 #include <Servo.h>
 
 #define MOTOR_PIN 5
@@ -73,7 +70,7 @@ void readSerial() {
 
   while (Serial.available()) {
     char dataChar = (char)Serial.read();
-    if (dataChar == '\n') { // end of string, value in dataString
+    if (dataChar == '.') { // end of string, value in dataString
       motor_speed = dataString.toInt();
 
       dataString = "";
@@ -125,3 +122,4 @@ void led_blink() {
   digitalWrite(LED_PIN, LOW);
   delay(500);
 }
+
