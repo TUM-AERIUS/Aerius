@@ -6,8 +6,8 @@ import numpy as np
 from nn import neural_net
 import tensorflow as tf
 import socket
-import serial
-import time
+import smbus
+from time import sleep
 import json
 
 TCP_HOST = '192.168.42.1'
@@ -17,7 +17,6 @@ TCP_PORT = 5005
 CAM_PORT = 8000
 
 BUFFER_SIZE = 1024
-
 NUM_SENSORS = 42
 
 # Goal LL -> L -> D -> R -> RR
@@ -27,69 +26,30 @@ D  = 0
 R  = +10
 RR = +20
 
-# Connect to Arduino
-try:
-    ser = serial.Serial('/dev/ttyACM0', 9600)
-except:
-    ser = serial.Serial('/dev/ttyACM1', 9600)
-
-
-time.sleep(1)
-ser.setDTR(level=0)
-time.sleep(1)
-
 
 def drive(session, state, prediction):
-    # TCP Socket for Remote Control Communication
-    data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    data_sock.bind((TCP_IP, TCP_PORT))
-    data_sock.listen(20)
+    connect_i2c() # Connect to Arduino
 
-    # Camera Socket for Cross-Pi Communication
-    cam_socket = socket.socket()
-    cam_socket.connect((CAM_HOST, CAM_PORT))
+    bus = smbus.SMBus(1) # Connect to I2C Bus
 
-    # Make file-like object out of connection
-    pi_conn = client_socket.makefile('rwb')
+    remote_conn = remote_connect() # TCP Socket for Remote Control Communication
+    camera_sock = camera_socket() # Camera Socket for Cross-Pi Communication
 
-    # Setup Camera
-    try:
-        with picamera.PiCamera() as camera:
-            camera.resolution = (640, 480)
-            # Start a preview and let the camera warm up for 2 seconds
-            camera.start_preview()
-            time.sleep(2)
+    setup_cam(camera_sock) # Setup Cam
 
+    vel, deg = 0, 0
 
-    vel = 0
-    deg = 0
-
+    # Main Loop
     while True:
-        # Get Data from App
-        rc_conn, rc_address = s.accept()
-        print("Connection address: ", address)
+        vel_new, deg_new = get_data(remote_conn) # Get Data from App
 
-        data = rc_conn.recv(BUFFER_SIZE)
-        if data:
-            print("Received data: ", data)
-            values = data.decode().split(' ')[1]
+        world_state = state() # Read Sensors -> Construct internal state
 
-            vel_new = int(values.split(',')[0])
-            deg_new = int(values.split('.')[1])
-        rc_conn.close()
+        obstacle = obstacles(readings) # Check for obstacle
 
-        # Todo: Get Sensor values
-
-
-
-        # obstacle = obst_cams() or obst_son(LEFT) or obst_son(RIGHT)
-
-        obstacle = False # For now so we're not using the Network
-
-        if obstacle:
-            feed_dict = {state: worldstate}
-            action = np.argmax(session.run([prediction], feed_dict=feed_dict)) # Choose action.
-
+        if obstacle: # Imminent Collision -> Invoke NeuralNet
+            feed_dict = {state: world_state}
+            action = np.argmax(session.run([prediction], feed_dict=feed_dict))
         else:
             # Car velocity vector
             dx = vel * Math.cos(deg)
@@ -106,21 +66,81 @@ def drive(session, state, prediction):
                 action = RR if sin_angle < 0 else LL
             else: action = deg_new
 
-        # Update values
-        vel, deg = vel_new, action
+        vel, deg = vel_new, action # Update values
 
-        # Take action.
-        actuate(vel, deg)
+        send(bus, vel, deg) # Take action.
 
         # Tell us something.
         if car_distance % 1000 == 0:
             print("Current distance: %d frames." % car_distance)
 
-def actuate(v, s):
-    ser.write(bytes(str(v) + ',' + str(s) + '.'))
+def connect_serial():
+    try:    ser = serial.Serial('/dev/ttyACM0', 9600)
+    except: ser = serial.Serial('/dev/ttyACM1', 9600)
 
-def
+    time.sleep(1)
+    ser.setDTR(level=0)
+    time.sleep(1)
 
+def remote_connect():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind((TCP_IP, TCP_PORT))
+    sock.listen(20)
+
+    conn, address = sock.accept()
+    conn.settimeout(1.4)
+    print("Connection address: ", address)
+
+    return conn
+
+def camera_socket():
+    sock = socket.socket()
+    sock.connect((CAM_HOST, CAM_PORT))
+
+def setup_cam(sock):
+    pi_conn = sock.makefile('rwb')     # Make file-like object out of connection
+    # Todo: Setup Camera
+
+def get_data(conn):
+    while 1:
+        try:
+            data = conn.recv(BUFFER_SIZE)
+            print('Received data: ', data)
+            stopped = False
+            break;
+        except socket.timeout:
+            if !stopped: send(bus, '0,0.')
+            stopped = true
+            print('Failsafe activated')
+            sleep(3)
+
+    values = data.decode().split(' ')[1]
+    vel_new = int(values.split(',')[0])
+    deg_new = int(values.split(',')[1][:-1])
+
+    return vel_new, deg_new
+
+def state():
+    readings = []
+    # Todo: Add StereoCam values
+    # Todo: Add Ultrasound values
+    # Todo: Add Driving Values
+    return np.array(readings)
+
+def obstacle(state):
+    if min(state[0][40:42]) < MIN_SONIC: # Check Ultrasonic Sensors
+        return True
+    for i in range(40):
+        state[0][i]
+
+def send(bus, vel, deg):
+    out = deg + "," + vel + "."
+    for c in out:
+        try: bus.write_byte(i2c_address, ord(c))
+        except:
+            print('Loose Connection!')
+            sleep(1)
+            send(bus, out)
 
 
 if __name__ == "__main__":

@@ -1,12 +1,14 @@
 #include <Wire.h>
 #include <Servo.h>
 
-#define SERVO_PIN 3
+#define SERVO_PIN 7
 #define MOTOR_PIN 5
 
+#define I2C_ADDRESS 0x04
+
 #define SERVO_NEUTRAL       1500
-#define SERVO_20_DEG_L      1100
-#define SERVO_20_DEG_R      1900
+#define SERVO_40_DEG_L      850
+#define SERVO_40_DEG_R      2150
 
 #define MOTOR_NEUTRAL       1520 // TODO: verify value, may vary depending on ESC calibration
 #define MOTOR_BRAKE_MAX     650
@@ -26,18 +28,24 @@ int steering = 0;
 /* throttle pct [0,...,100] */
 int velocity = 0;
 
+int count = 0; //Variable to check for Failsafe
+
 // ---------- Initialization ----------
 
 void setup() {
-    Serial.begin(9600);
-    delay(100);
+    /*Serial.begin(9600);
+    delay(100);*/
+
+    //Setup I2C Communication
+    Wire.begin(I2C_ADDRESS);
+    Wire.onReceive(receive);
 
     init_motor();
     init_servo();
 }
 
 void init_servo() {
-    Serial.println("Starting..");
+    //Serial.println("Starting..");
     servo.attach(SERVO_PIN);
     servo.writeMicroseconds(SERVO_NEUTRAL);
 
@@ -50,18 +58,42 @@ void init_motor() {
     motor.writeMicroseconds(MOTOR_NEUTRAL);
 
     delay(1000);
-    Serial.println("motor init successful");
+    //Serial.println("motor init successful");
 }
 
 // ---------- Program ----------
 
 void loop() {
-    readSerial();
-
     updateServo();
     updateMotor();
 
     delay(100);
+
+    //Failsafe
+    if (count++ == 10) {
+        count = 0;
+        steering = 0;
+        velocity = 0;
+    }
+}
+
+void receive(int byteCount) {
+    static char data[5];
+    static byte i = 0;
+
+    while (Wire.available()){
+        char c = (char) Wire.read();
+
+        if (i > 5) return; //Check for overflow
+
+        if (c != ',' && c != '.') { data[i++] = c; return; } //Default Case
+
+        data[i] = '\0';
+        if (c == ',') steering = atoi(data);
+        if (c == '.') velocity = atoi(data);
+        i = 0; //Reset Pointer
+        count = 0;
+    }
 }
 
 /**
@@ -76,23 +108,27 @@ void readSerial() {
 
 
 void read(int mode, char divider) {
-    char data[] = "    ";
-    static byte i = 0;
+    String data = "";
+    byte i = 0;
 
     while (Serial.available()){
         char c = (char) Serial.read();
 
         // Check for overflow
-        if (i >= 3) return;
+        if (divider == '.' && i > 4) return;
+        if (divider == ',' && i > 3) return;
 
         if (c == -1) { delay(5); } // No data to read
         else if (c == divider) {  // End of String
             switch (mode) {
-                case SERVO: steering = atoi(&data[0]);
-                case MOTOR: velocity = atoi(&data[0]);
+                case SERVO: steering = data.toInt();
+                case MOTOR: velocity = data.toInt();
             }
             return;
-        } else { data[i++] = c; } // Standard Case
+        } else {
+            data += c;
+            i++;
+        } // Standard Case
     }
 }
 
@@ -102,7 +138,7 @@ void updateServo() {
     if (steering == 0) {
         val = SERVO_NEUTRAL; // move to center position
     } else {
-        val = map(steering, -20, 20, SERVO_20_DEG_L, SERVO_20_DEG_R);
+        val = map(steering, -40, 40, SERVO_40_DEG_L, SERVO_40_DEG_R);
     }
 
     servo.writeMicroseconds(val);

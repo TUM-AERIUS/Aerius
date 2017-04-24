@@ -1,47 +1,53 @@
 import socket
 import json
-import serial
-import time
+import smbus
+from time import sleep
 from datetime import datetime
-
 
 TCP_HOST = '192.168.42.1'
 TCP_PORT = 5015
 BUFFER_SIZE = 1024
+i2c_address = 0x04
 
-try:
-    ser = serial.Serial('/dev/ttyACM0', 9600)
-except:
-    ser = serial.Serial('/dev/ttyACM1', 9600)
+def send(bus, out):
+    for c in out:
+        try: bus.write_byte(i2c_address, ord(c))
+        except:
+            print('Loose Connection!')
+            sleep(1)
+            send(bus, out)
 
-time.sleep(1)
-ser.setDTR(level=0)
-time.sleep(1)
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind((TCP_HOST, TCP_PORT))
-s.listen(20)
+bus = smbus.SMBus(1)
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.bind((TCP_HOST, TCP_PORT))
+sock.listen(20)
+
+# Setup Socket
+conn, address = sock.accept()
+conn.settimeout(1.2)
+print("Connection address: ", address)
+
+out = "0,0."
+stopped = False
 
 while 1:
-    # Setup Socket
-    conn, address = s.accept()
-    conn.settimeout(1)
-    print("Connection address: ", address)
-
-    # Get Data
     try:
         data = conn.recv(BUFFER_SIZE)
-        out = data.decode().split(' ')[1]
+        out  = data.decode().split(' ')[1]
+        stopped = False
+    except socket.timeout:
+        if !stopped: send(bus, "0,0.") # Failsafe
+        stopped = True
+        print('Failsafe activated')
 
-        v = out.split(',')[0]
-        s = out.split(',')[1][:-1]
+    if stopped:
+        time.sleep(3)
+        continue
 
-        print(out    + str(datetime.now().time()))
-        ser.write(bytes(out))
-        print('Sent' + str(datetime.now().time()))
+    v = out.split(',')[0]
+    s = out.split(',')[1][:-1]
 
-    except socket.timeout: # Handle Timeout
-        ser.write(bytes("0,0."))
-        print("timeout -> 0,0.")
-
-    conn.close()
+    print(out + " -> " + str(datetime.now().time()))
+    send(bus, out)
