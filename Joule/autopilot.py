@@ -66,7 +66,8 @@ try:
 
         # output = str(action) + ',' + str(VELOCITY) + '.'
         # send(bus, output)
-except:
+except Exception as e:
+    print(e)
     lidar.stop()
     lidar.stop_motor()
     lidar.disconnect()
