@@ -54,16 +54,17 @@ lidar = rplidar_init()
 
 #time.sleep(1000)
 
-for i, scan in enumerate(lidar.iter_scans()): # Read the LiDaR point cloud
-    print('%d: Got %d measurments' % (i, len(scan)))
+try:
+    for i, scan in enumerate(lidar.iter_scans()): # Read the LiDaR point cloud
+        print('%d: Got %d measurments' % (i, len(scan)))
 
-    # nn_state = transform(scans) # Transform Point Cloud into suitable NP-Array
-    # action = nn_choice(nn_state) # Pass input through NeuralNet, then transform to degree
-    # print(action)
+        # nn_state = transform(scans) # Transform Point Cloud into suitable NP-Array
+        # action = nn_choice(nn_state) # Pass input through NeuralNet, then transform to degree
+        # print(action)
 
-    # output = str(action) + ',' + str(VELOCITY) + '.'
-    # send(bus, output)
-
-lidar.stop()
-lidar.stop_motor()
-lidar.disconnect()
+        # output = str(action) + ',' + str(VELOCITY) + '.'
+        # send(bus, output)
+except:
+    lidar.stop()
+    lidar.stop_motor()
+    lidar.disconnect()
