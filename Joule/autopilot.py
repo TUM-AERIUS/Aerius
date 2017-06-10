@@ -22,12 +22,14 @@ VELOCITY = 7
             # sleep(1)
             # send(bus, out)
 
-# def transform(points):
-#     points = [pair(p) for p in points if p < 20 or p > 340]
-#     readings = [50] * 49
-#     for p in points:
-#         readings[p[0]] = min(p[1], readings[p[0]])
-#     return np.array(readings)
+def transform(points):
+    points = [pair(p) for p in points if p[1] < 20 or p[1] > 340]
+    readings = [50] * 40
+    for p in points:
+        readings[p[0]] = min(p[1], readings[p[0]])
+
+    print(points, readings)
+    return np.array(readings)
 
 def pair(p):
     return (math.floor(p[1] + 20) % 360, p[2] / 100)
@@ -58,7 +60,7 @@ try:
     for i, scan in enumerate(lidar.iter_scans()): # Read the LiDaR point cloud
         print('%d: Got %d measurments' % (i, len(scan)))
 
-        # nn_state = transform(scans) # Transform Point Cloud into suitable NP-Array
+        nn_state = transform(scans) # Transform Point Cloud into suitable NP-Array
         # action = nn_choice(nn_state) # Pass input through NeuralNet, then transform to degree
         # print(action)
 
