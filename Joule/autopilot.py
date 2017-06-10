@@ -58,8 +58,8 @@ for i, scan in enumerate(lidar.iter_scans()): # Read the LiDaR point cloud
     print('%d: Got %d measurments' % (i, len(scan)))
 
     nn_state = transform(scans) # Transform Point Cloud into suitable NP-Array
-
     action = nn_choice(nn_state) # Pass input through NeuralNet, then transform to degree
+    print(action)
 
     output = str(action) + ',' + str(VELOCITY) + '.'
     send(bus, output)
