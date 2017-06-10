@@ -3,6 +3,7 @@ import smbus
 from nn import neural_net
 from time import sleep
 from datetime import datetime
+from rplidar import RPLidar
 
 i2c_address = 0x37
 i2c_bus = 6
@@ -29,13 +30,18 @@ def transform(points):
     return np.array(readings)
 
 def pair(p):
-    return (math.floor(p[0] + 20) % 360, p[1] / 100)
+    return (math.floor(p[1] + 20) % 360, p[2] / 100)
 
 def rplidar_init():
-    # ToDo
+    lidar = RPLidar('/dev/ttyUSB0')
 
-def rplidar_read():
-    # ToDo
+    info = lidar.get_info()
+    print(info)
+
+    health = lidar.get_health()
+    print(health)
+
+    return lidar
 
 def nn_choice(nn_state):
     feed_dict = {state: nn_state}
@@ -44,13 +50,20 @@ def nn_choice(nn_state):
 
 
 bus = smbus.SMBus(i2c_bus)
-rplidar_init()
+lidar = rplidar_init()
 
-while 1:
-    points = rplidar_read() # Read the LiDaR Point Cloud
-    nn_state = transform(points) # Transform Point Cloud into suitable NP-Array
+time.sleep(1000)
+
+for i, scan in enumerate(lidar.iter_scans()): # Read the LiDaR point cloud
+    print('%d: Got %d measurments' % (i, len(scan)))
+
+    nn_state = transform(scans) # Transform Point Cloud into suitable NP-Array
 
     action = nn_choice(nn_state) # Pass input through NeuralNet, then transform to degree
 
     output = str(action) + ',' + str(VELOCITY) + '.'
     send(bus, output)
+
+lidar.stop()
+lidar.stop_motor()
+lidar.disconnect()
