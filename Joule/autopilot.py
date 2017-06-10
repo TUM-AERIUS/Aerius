@@ -1,6 +1,6 @@
 import math
 # import smbus
-from nn import neural_net
+# from nn import neural_net
 from time import sleep
 from datetime import datetime
 from rplidar import RPLidar
@@ -52,7 +52,7 @@ def rplidar_init():
 # bus = smbus.SMBus(i2c_bus)
 lidar = rplidar_init()
 
-time.sleep(1000)
+#time.sleep(1000)
 
 for i, scan in enumerate(lidar.iter_scans()): # Read the LiDaR point cloud
     print('%d: Got %d measurments' % (i, len(scan)))
