@@ -4,6 +4,7 @@ import math
 from time import sleep
 from datetime import datetime
 from rplidar import RPLidar
+import numpy as np
 
 i2c_address = 0x37
 i2c_bus = 6
@@ -28,7 +29,7 @@ def transform(points):
     for p in points:
         readings[p[0]] = min(p[1], readings[p[0]])
 
-    print(points, readings)
+    print("points:",points, readings)
     return np.array(readings)
 
 def pair(p):
@@ -58,16 +59,14 @@ lidar = rplidar_init()
 
 try:
     for i, scan in enumerate(lidar.iter_scans()): # Read the LiDaR point cloud
-        print('%d: Got %d measurments' % (i, len(scan)))
 
-        nn_state = transform(scans) # Transform Point Cloud into suitable NP-Array
+        nn_state = transform(scan) # Transform Point Cloud into suitable NP-Array
         # action = nn_choice(nn_state) # Pass input through NeuralNet, then transform to degree
         # print(action)
 
         # output = str(action) + ',' + str(VELOCITY) + '.'
         # send(bus, output)
-except Exception as e:
-    print(e)
+except:
     lidar.stop()
     lidar.stop_motor()
     lidar.disconnect()
