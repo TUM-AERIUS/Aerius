@@ -4,7 +4,7 @@
 #define SERVO_PIN 7
 #define MOTOR_PIN 5
 
-#define I2C_ADDRESS 0x37
+#define I2C_ADDRESS 0x04
 
 #define SERVO_NEUTRAL       1500
 #define SERVO_40_DEG_L      850
@@ -35,13 +35,23 @@ int count = 0; //Variable to check for Failsafe
 void setup() {
     /*Serial.begin(9600);
     delay(100);*/
-
-    //Setup I2C Communication
-    Wire.begin(I2C_ADDRESS);
-    Wire.onReceive(receive);
-
+ 
     init_motor();
     init_servo();
+
+    Serial.println("Starting!");
+    delay(10000);
+
+    for(int j = 10; j <= 100; j+=10) {
+      velocity = j;
+      updateMotor();
+      delay(100);
+    }
+
+    delay(1);
+    velocity = 0;
+    updateMotor();
+    
 }
 
 void init_servo() {
@@ -64,76 +74,6 @@ void init_motor() {
 // ---------- Program ----------
 
 void loop() {
-    updateServo();
-    updateMotor();
-
-    delay(100);
-
-    Serial.println(steering);
-    Serial.println(velocity);
-
-    //Failsafe
-    if (count++ == 20) {
-        count = 0;
-        steering = 0;
-        velocity = 0;
-    }
-}
-
-void receive(int byteCount) {
-    static char data[5];
-    static byte i = 0;
-
-    while (Wire.available()){
-        char c = (char) Wire.read();
-        Serial.println(c);
-
-        if (i > 5) return; //Check for overflow
-
-        if (c != ',' && c != '.') { data[i++] = c; return; } //Default Case
-
-        data[i] = '\0';
-        if (c == ',') steering = atoi(data);
-        if (c == '.') velocity = atoi(data);
-        i = 0; //Reset Pointer
-        count = 0;
-    }
-}
-
-/**
-* Reads the throttle and steering input from the USB Serial.
-*/
-void readSerial() {
-    while (Serial.available()) {
-        read(SERVO, ',');
-        read(MOTOR, '.');
-    }
-}
-
-
-void read(int mode, char divider) {
-    String data = "";
-    byte i = 0;
-
-    while (Serial.available()){
-        char c = (char) Serial.read();
-
-        // Check for overflow
-        if (divider == '.' && i > 4) return;
-        if (divider == ',' && i > 3) return;
-
-        if (c == -1) { delay(5); } // No data to read
-        else if (c == divider) {  // End of String
-            switch (mode) {
-                case SERVO: steering = data.toInt();
-                case MOTOR: velocity = data.toInt();
-            }
-            return;
-        } else {
-            data += c;
-            i++;
-        } // Standard Case
-    }
 }
 
 void updateServo() {
