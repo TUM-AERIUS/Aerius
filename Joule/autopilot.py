@@ -11,17 +11,17 @@ i2c_bus = 6
 
 VELOCITY = 7
 
-# session, update, prediction, state, input, labels = neural_net(NUM_SENSORS, [180, 164])
-# saver = tf.train.Saver()
-# saver.restore(session, tf.train.latest_checkpoint("tensorData/"))
+session, update, prediction, state, input, labels = neural_net(NUM_SENSORS, [180, 164])
+saver = tf.train.Saver()
+saver.restore(session, tf.train.latest_checkpoint("tensorData/"))
 
-# def send(bus, out):
-    # for c in out:
-        # try: bus.write_byte(i2c_address, ord(c))
-        # except:
-            # print('Loose Connection!')
-            # sleep(1)
-            # send(bus, out)
+def send(bus, out):
+    for c in out:
+        try: bus.write_byte(i2c_address, ord(c))
+        except:
+            print('Loose Connection!')
+            sleep(1)
+            send(bus, out)
 
 def transform(points):
     points = [pair(p) for p in points if p[1] < 20 or p[1] > 340]
@@ -46,26 +46,26 @@ def rplidar_init():
 
     return lidar
 
-# def nn_choice(nn_state):
-    # feed_dict = {state: nn_state}
-    # action = np.argmax(session.run([prediction], feed_dict=feed_dict)) # Choose action.
-    # return -20 if action == 0 else (20 if action == 1 else 0)
+def nn_choice(nn_state):
+    feed_dict = {state: nn_state}
+    action = np.argmax(session.run([prediction], feed_dict=feed_dict)) # Choose action.
+    return -20 if action == 0 else (20 if action == 1 else 0)
 
 
-# bus = smbus.SMBus(i2c_bus)
+bus = smbus.SMBus(i2c_bus)
 lidar = rplidar_init()
 
-#time.sleep(1000)
+# time.sleep(1000)
 
 try:
     for i, scan in enumerate(lidar.iter_scans()): # Read the LiDaR point cloud
 
         nn_state = transform(scan) # Transform Point Cloud into suitable NP-Array
-        # action = nn_choice(nn_state) # Pass input through NeuralNet, then transform to degree
-        # print(action)
+        action = nn_choice(nn_state) # Pass input through NeuralNet, then transform to degree
+        print(action)
 
-        # output = str(action) + ',' + str(VELOCITY) + '.'
-        # send(bus, output)
+        output = str(action) + ',' + str(VELOCITY) + '.'
+        send(bus, output)
 except:
     lidar.stop()
     lidar.stop_motor()
