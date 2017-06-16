@@ -69,8 +69,8 @@ void loop() {
 
     delay(100);
 
-    Serial.println(steering);
-    Serial.println(velocity);
+    //Serial.println(steering);
+    //Serial.println(velocity);
 
     //Failsafe
     if (count++ == 20) {

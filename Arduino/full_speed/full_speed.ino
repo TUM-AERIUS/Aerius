@@ -48,7 +48,7 @@ void setup() {
       delay(100);
     }
 
-    delay(1);
+    delay(1000);
     velocity = 0;
     updateMotor();
     
