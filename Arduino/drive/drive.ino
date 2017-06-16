@@ -10,9 +10,11 @@
 #define SERVO_40_DEG_L      850
 #define SERVO_40_DEG_R      2150
 
-#define MOTOR_NEUTRAL       1520 // TODO: verify value, may vary depending on ESC calibration
+#define MOTOR_NEUTRAL       1450
 #define MOTOR_BRAKE_MAX     650
 #define MOTOR_THROTTLE_MAX  2000
+#define MOTOR_FORWARD_MAX   2000  // [1550-2000]
+#define MOTOR_REVERSE_MAX   1000  // [1300-1000]
 
 #define SERVO 0
 #define MOTOR 1
@@ -25,7 +27,7 @@ Servo motor;
 
 /* steering deg [-20,...,20] */
 int steering = 0;
-/* throttle pct [0,...,100] */
+/* throttle pct [-100,...,100] */
 int velocity = 0;
 
 int count = 0; //Variable to check for Failsafe
@@ -126,7 +128,7 @@ void read(int mode, char divider) {
         else if (c == divider) {  // End of String
             switch (mode) {
                 case SERVO: steering = data.toInt();
-                case MOTOR: velocity = data.toInt();
+                case MOTOR: velocity = data.toInt();  // TODO: verify that negative values are parsed correctly (for reverse)
             }
             return;
         } else {
@@ -149,14 +151,15 @@ void updateServo() {
 }
 
 void updateMotor() {
-    /* map [-100,...,100] to [MOTOR_BRAKE_MAX,...,MOTOR_THROTTLE_MAX] */
+    /* map [-100,...,100] to [MOTOR_REVERSE_MAX,...,MOTOR_NEUTRAL] if reverse, [MOTOR_NEUTRAL,...,MOTOR_FORWARD_MAX] if forward */
     int val = 0;
     if (velocity == 0) {
         val = MOTOR_NEUTRAL; // move to center position (lower than center should brake)
+    } else if (velocity < MOTOR_NEUTRAL) {
+      val = map(velocity, -100, 0, MOTOR_REVERSE_MAX, MOTOR_NEUTRAL); // reverse
     } else {
-        val = map(velocity, 0, 100, MOTOR_NEUTRAL, MOTOR_THROTTLE_MAX);
+      val = map(velocity, 0, 100, MOTOR_NEUTRAL, MOTOR_FORWARD_MAX); // forward
     }
-    // TODO: implement braking, e.g. add -100 to value range
 
     motor.writeMicroseconds(val);
 }
