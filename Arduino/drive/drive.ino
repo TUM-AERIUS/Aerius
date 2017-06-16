@@ -155,7 +155,7 @@ void updateMotor() {
     int val = 0;
     if (velocity == 0) {
         val = MOTOR_NEUTRAL; // move to center position (lower than center should brake)
-    } else if (velocity < MOTOR_NEUTRAL) {
+    } else if (velocity < 0) {
       val = map(velocity, -100, 0, MOTOR_REVERSE_MAX, MOTOR_NEUTRAL); // reverse
     } else {
       val = map(velocity, 0, 100, MOTOR_NEUTRAL, MOTOR_FORWARD_MAX); // forward
