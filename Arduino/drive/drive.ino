@@ -128,7 +128,7 @@ void read(int mode, char divider) {
         else if (c == divider) {  // End of String
             switch (mode) {
                 case SERVO: steering = data.toInt();
-                case MOTOR: velocity = data.toInt();  // TODO: verify that negative values are parsed correctly (for reverse)
+                case MOTOR: velocity = data.toInt();  // TODO: verify for reverse values
             }
             return;
         } else {
@@ -151,7 +151,8 @@ void updateServo() {
 }
 
 void updateMotor() {
-    /* map [-100,...,100] to [MOTOR_REVERSE_MAX,...,MOTOR_NEUTRAL] if reverse, [MOTOR_NEUTRAL,...,MOTOR_FORWARD_MAX] if forward */
+    /* map [-100,...,100] to [MOTOR_REVERSE_MAX,...,MOTOR_NEUTRAL] if reverse,
+    / or [MOTOR_NEUTRAL,...,MOTOR_FORWARD_MAX] if forward */
     int val = 0;
     if (velocity == 0) {
         val = MOTOR_NEUTRAL; // move to center position (lower than center should brake)
