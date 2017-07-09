@@ -1,7 +1,6 @@
 from rplidar import RPLidar
 
-RPLidar('/dev/ttyUSB0').stop_motor()
-
-
-
-
+try:
+    RPLidar('/dev/ttyUSB1').stop_motor()
+except:
+    RPLidar('/dev/ttyUSB0').stop_motor()

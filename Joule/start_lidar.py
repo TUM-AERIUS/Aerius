@@ -1,7 +1,7 @@
+#!/usr/bin/python3
 from rplidar import RPLidar
 
-RPLidar('/dev/ttyUSB0').start_motor()
-
-
-
-
+try:
+    RPLidar('/dev/ttyUSB1').start_motor()
+except:
+    RPLidar('/dev/ttyUSB0').start_motor()
