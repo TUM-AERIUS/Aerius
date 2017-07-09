@@ -1,7 +1,7 @@
 import math
+from time import sleep
 import smbus
 from nn import neural_net
-from time import sleep
 from datetime import datetime
 from rplidar import RPLidar
 import numpy as np
@@ -17,9 +17,10 @@ session, update, prediction, state, input, labels = neural_net(NUM_SENSORS, [180
 saver = tf.train.Saver()
 saver.restore(session, tf.train.latest_checkpoint("tensorData/"))
 
-def send(bus, out):
-    for c in out:
-        try: bus.write_byte(i2c_address, ord(c))
+# Docstring
+def send(sbus, out):
+    for char in out:
+        try: sbus.write_byte(i2c_address, ord(char))
         except:
             print('Loose Connection!')
             sleep(1)
@@ -28,14 +29,14 @@ def send(bus, out):
 def transform(points):
     points = [pair(p) for p in points if p[1] < 20 or p[1] > 340]
     readings = [50] * 40
-    for p in points:
-        readings[p[0]] = min(p[1], readings[p[0]])
+    for point in points:
+        readings[point[0]] = min(point[1], readings[point[0]])
 
     # print("points:",points, readings)
     return np.array(readings)
 
-def pair(p):
-    return (math.floor(p[1] + 20) % 360, p[2] / 100)
+def pair(point):
+    return (math.floor(point[1] + 20) % 360, point[2] / 100)
 
 def rplidar_init():
     lidar = RPLidar('/dev/ttyUSB0')
@@ -47,6 +48,14 @@ def rplidar_init():
     print(health)
 
     return lidar
+
+def dt_choice(dt_state):
+    i = np.argmin(dt_state, 0)
+    if i < 15 or i > 25:
+        return 0
+    elif i < 20:
+        return 20
+    return -20
 
 def nn_choice(nn_state):
     nn_state = np.reshape(nn_state, (1, nn_state.shape[0]))
