@@ -20,7 +20,7 @@ def send(bus, out):
             send(bus, out)
 
 
-#bus = smbus.SMBus(1)
+bus = smbus.SMBus(1)
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.bind((TCP_HOST, TCP_PORT))
