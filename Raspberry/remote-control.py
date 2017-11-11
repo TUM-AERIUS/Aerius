@@ -7,7 +7,7 @@ from datetime import datetime
 TCP_HOST = '192.168.42.1'
 TCP_PORT = 5015
 BUFFER_SIZE = 1024
-i2c_address = 0x04
+i2c_address = 0x37
 
 def send(bus, out):
     for c in out:
@@ -38,7 +38,8 @@ while 1:
         out  = data.decode().split(' ')[1]
         stopped = False
     except socket.timeout:
-        if !stopped: send(bus, "0,0.") # Failsafe
+        if not stopped:
+            send(bus, "0,0.") # Failsafe
         stopped = True
         print('Failsafe activated')
 
