@@ -87,7 +87,7 @@ while True:
             print(output)
             send(bus, output)
     except Exception as ex:
-        print ex
+        print(ex)
         traceback.print_exc()
         lidar.stop_motor()
         lidar.disconnect()

@@ -9,16 +9,18 @@ TCP_PORT = 5015
 BUFFER_SIZE = 1024
 i2c_address = 0x37
 
+
 def send(bus, out):
     for c in out:
-        try: bus.write_byte(i2c_address, ord(c))
+        try:
+            bus.write_byte(i2c_address, ord(c))
         except:
             print('Loose Connection!')
             sleep(1)
             send(bus, out)
 
 
-bus = smbus.SMBus(1)
+#bus = smbus.SMBus(1)
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.bind((TCP_HOST, TCP_PORT))
@@ -35,11 +37,11 @@ stopped = False
 while 1:
     try:
         data = conn.recv(BUFFER_SIZE)
-        out  = data.decode().split(' ')[1]
+        out = data.decode().split(' ')[1]
         stopped = False
     except socket.timeout:
         if not stopped:
-            send(bus, "0,0.") # Failsafe
+            send(bus, "0,0.")  # Failsafe
         stopped = True
         print('Failsafe activated')
 
