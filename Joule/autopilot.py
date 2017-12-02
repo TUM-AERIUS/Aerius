@@ -8,6 +8,8 @@ from rplidar import RPLidar
 import numpy as np
 import tensorflow as tf
 import traceback
+import socket
+from io import StringIO
 
 i2c_address = 0x37
 i2c_bus = 1

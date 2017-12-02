@@ -5,10 +5,10 @@ from rplidar import RPLidar
 import numpy as np
 import traceback
 import socket
-from io import StringIO
+import io
 import struct
 
-port = 7555
+port = 7553
 
 
 def create_server():
@@ -26,12 +26,15 @@ def get_client(server):
 
 
 def send_data(connection, state):
-    f = StringIO()
-    np.savez_compressed(f, frame=state)
+    f = io.BytesIO()
+    np.save(f, state)
     num_bytes = f.tell()
     connection.write(struct.pack('<L', num_bytes))
+    connection.flush()
     f.seek(0)
     connection.write(f.read())
+    connection.flush()
+    print("Sent")
 
 
 def rplidar_init():
@@ -67,9 +70,9 @@ def transform(points):
 if __name__ == "__main__":
     server_socket = create_server()
     client_connection = get_client(server_socket)
-    while True:
-        lidar = rplidar_init()
+    lidar = rplidar_init()
 
+    while True:
         try:
             for i, scan in enumerate(lidar.iter_scans()):  # Read the LiDaR point cloud
                 # sleep(1)

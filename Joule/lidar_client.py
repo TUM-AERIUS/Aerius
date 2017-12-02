@@ -4,8 +4,8 @@ import io
 import struct
 
 
-server_address = "192.168.42.1"
-port = 7555
+server_address = ""
+port = 7553
 
 
 def create_connection():
@@ -20,12 +20,14 @@ def create_connection():
 
     return connection
 
+
 def receive_data(connection):
     size = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
     stream = io.BytesIO()
     stream.write(connection.read(size))
+    stream.seek(0)
     # Transform stream to numpy array
-    data = np.load(stream)['frame']
+    data = np.load(stream)
     return data
 
 
