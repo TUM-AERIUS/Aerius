@@ -41,6 +41,7 @@ def rplidar_init():
         lidar = RPLidar('/dev/ttyUSB0')
 
     lidar.start_motor()
+    lidar.set_pwm()
     info = lidar.get_info()
     print(info)
 
@@ -51,11 +52,11 @@ def rplidar_init():
 
 
 def pair(point):
-    return int(math.floor(point[1] + 20) % 360), point[2] / 100
+    return (int(math.floor(point[1] + 60) % 360 / 3), point[2] * 1.2)  # This is a hack. Fix it in the simulation.
 
 
 def transform(points):
-    points = [pair(p) for p in points if p[1] < 20 or p[1] > 340]
+    points = [pair(p) for p in points if (p[1] < 60 or p[1] > 300) and p[1] % 3 ==0 ] # This is a hack. Change it in v2.0!!!!
     readings = [50] * 40
     for point in points:
         readings[point[0]] = min(point[1], readings[point[0]])

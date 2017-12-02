@@ -30,16 +30,19 @@ def send(sbus, out):
             send(bus, out)
 
 def transform(points):
-    points = [pair(p) for p in points if p[1] < 20 or p[1] > 340]
-    readings = [50] * 40
+    points = [pair(p) for p in points if (p[1] < 60 or p[1] > 300)] # This is a hack. Change it in v2.0!!!!
+    readings = [600] * 120
     for point in points:
         readings[point[0]] = min(point[1], readings[point[0]])
-
+    # Take minimum of the 3 points.
+    readings_min = [600] * 40
+    for i in range(40):
+        readings_min = min(readings[3*i], readings[3*i+1], readings[3*i+2])
     # print("points:",points, readings)
-    return np.array(readings)
+    return np.array(readings_min)
 
 def pair(point):
-    return (int(math.floor(point[1] + 20) % 360), point[2] / 100)
+    return (int(math.floor(point[1] + 60) % 360), point[2] * 1.2)  # This is a hack. Fix it in the simulation.
 
 def rplidar_init():
     
