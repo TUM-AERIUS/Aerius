@@ -119,7 +119,7 @@ def get_sonar_readings(x, y, angle):
     cos10 = 10 * math.cos(angle)
     sin10 = 10 * math.sin(angle)
     arm = make_sonar_arm(x, y)
-    side_arm = make_sonar_arm(x - cos10, y - sin10, distance=10)
+    # side_arm = make_sonar_arm(x - cos10, y - sin10, distance=10)
 
     # Rotate them and get readings.
     for i in range(NUM_INPUTS):
