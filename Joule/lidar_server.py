@@ -59,13 +59,16 @@ def pair(point):
 
 
 def transform(points):
-    points = [pair(p) for p in points if (p[1] < 60 or p[1] > 300) and p[1] % 3 ==0 ] # This is a hack. Change it in v2.0!!!!
-    readings = [50] * 40
+    points = [pair(p) for p in points if (p[1] < 60 or p[1] > 300)] # This is a hack. Change it in v2.0!!!!
+    readings = [600] * 120
     for point in points:
         readings[point[0]] = min(point[1], readings[point[0]])
-
+    # Take minimum of the 3 points.
+    readings_min = [600] * 40
+    for i in range(40):
+        readings_min = min(readings[3*i], readings[3*i+1], readings[3*i+2])
     # print("points:",points, readings)
-    return np.array(readings)
+    return np.array(readings_min)
 
 
 if __name__ == "__main__":
