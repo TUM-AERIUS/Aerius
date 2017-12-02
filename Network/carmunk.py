@@ -266,21 +266,21 @@ class GameState:
         readings = get_sonar_readings(x, y, self.car_body.angle)
 
         # add direction angle
-        cos_alfa = math.cos(self.car_body.angle - self.given_angle)
-        readings.append(cos_alfa)
+        # cos_alfa = math.cos(self.car_body.angle - self.given_angle)
+        # readings.append(cos_alfa)
 
         # car direction
-        d = ((x - old_x) ** 2 + (y - old_y) ** 2) ** .5
-        readings.append(self.car_body.angle % (2 * math.pi))
-        readings.append((x - old_x) / d)
-        readings.append((y - old_y) / d)
+        # d = ((x - old_x) ** 2 + (y - old_y) ** 2) ** .5
+        # readings.append(self.car_body.angle % (2 * math.pi))
+        # readings.append((x - old_x) / d)
+        # readings.append((y - old_y) / d)
 
         # given direction
-        delta = (self.given_x ** 2 + self.given_y ** 2) ** .5
+        # delta = (self.given_x ** 2 + self.given_y ** 2) ** .5
 
-        readings.append(self.given_angle % 2 * math.pi)
-        readings.append(self.given_x / delta)
-        readings.append(self.given_y / delta)
+        # readings.append(self.given_angle % 2 * math.pi)
+        # readings.append(self.given_x / delta)
+        # readings.append(self.given_y / delta)
 
         # car position
         # readings.append(self.car_body.position.x)

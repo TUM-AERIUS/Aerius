@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 batch_size = 100
-keep_prob = 0.8
+keep_prob = 0.9
 
 
 def neural_net(num_sensors, params):

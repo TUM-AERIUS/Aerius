@@ -6,7 +6,7 @@ import timeit
 import tensorflow as tf
 import os
 
-NUM_INPUT = 49
+NUM_INPUT = 40
 GAMMA = 0.9  # Forgetting.
 save_dir = "tensorboard"
 load_dir = "tensorData"
