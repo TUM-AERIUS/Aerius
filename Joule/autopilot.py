@@ -1,3 +1,4 @@
+from __future__ import print_function
 import math
 from time import sleep
 import smbus
@@ -11,7 +12,7 @@ import traceback
 i2c_address = 0x37
 i2c_bus = 1
 
-VELOCITY = 7
+VELOCITY = 20
 NUM_SENSORS = 40
 
 session, update, prediction, state, input, labels = neural_net(NUM_SENSORS, [180, 164])
@@ -46,7 +47,8 @@ def rplidar_init():
         lidar = RPLidar('/dev/ttyUSB1')
     except:
         lidar = RPLidar('/dev/ttyUSB0')
-
+    
+    lidar.start_motor()
     info = lidar.get_info()
     print(info)
 
@@ -74,18 +76,19 @@ bus = smbus.SMBus(i2c_bus)
 while True:
     lidar = rplidar_init()
 
-    # time.sleep(1000)
+    sleep(1)
 
     try:
         for i, scan in enumerate(lidar.iter_scans()): # Read the LiDaR point cloud
             #sleep(1)
             nn_state = transform(scan) # Transform Point Cloud into suitable NP-Array
             action = nn_choice(nn_state) # Pass input through NeuralNet, then transform to degree
-            print(action)
+            print("Action: ", action)
 	    
             output = str(action) + ',' + str(VELOCITY) + '.'
             print(output)
             send(bus, output)
+            
     except Exception as ex:
         print(ex)
         traceback.print_exc()
