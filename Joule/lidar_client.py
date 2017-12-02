@@ -4,8 +4,8 @@ import io
 import struct
 
 
-server_address = ""
-port = 7553
+server_address = "192.168.42.1"
+port = 7552
 
 
 def create_connection():
