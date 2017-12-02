@@ -33,7 +33,7 @@ def points(a, b):
 
 
 def car_is_crashed(readings):
-    for i in range(NUM_INPUTS + 2):
+    for i in range(NUM_INPUTS):
         if readings[i] == 1: return True
     return False
 
@@ -127,21 +127,21 @@ def get_sonar_readings(x, y, angle):
         readings.append(get_arm_distance(arm, x, y, angle, offset))
 
     # Right and left ultrasonic sensors
-    min_left = math.inf
-    min_right = math.inf
+    # min_left = math.inf
+    # min_right = math.inf
+    #
+    # for i in range(NUM_INPUTS // 4):
+    #     delta = -0.6 + (1.2 / (NUM_INPUTS // 4)) * i
+    #     pi2 = (math.pi / 2)
+    #
+    #     left  = get_arm_distance(side_arm, x - cos10, y - sin10, angle + pi2, delta)
+    #     right = get_arm_distance(side_arm, x - cos10, y - sin10, angle - pi2, delta)
+    #
+    #     if left  < min_left:  min_left  = left
+    #     if right < min_right: min_right = right
 
-    for i in range(NUM_INPUTS // 4):
-        delta = -0.6 + (1.2 / (NUM_INPUTS // 4)) * i
-        pi2 = (math.pi / 2)
-
-        left  = get_arm_distance(side_arm, x - cos10, y - sin10, angle + pi2, delta)
-        right = get_arm_distance(side_arm, x - cos10, y - sin10, angle - pi2, delta)
-
-        if left  < min_left:  min_left  = left
-        if right < min_right: min_right = right
-
-    readings.append(min_left)
-    readings.append(min_right)
+    #readings.append(min_left)
+    #readings.append(min_right)
 
     if show_sensors:
         pygame.display.update()
@@ -264,7 +264,6 @@ class GameState:
         # Get the current location and the readings there.
         x, y = self.car_body.position
         readings = get_sonar_readings(x, y, self.car_body.angle)
-
         # add direction angle
         # cos_alfa = math.cos(self.car_body.angle - self.given_angle)
         # readings.append(cos_alfa)
@@ -286,7 +285,6 @@ class GameState:
         # readings.append(self.car_body.position.x)
         # readings.append(self.car_body.position.y)
         state = np.array([readings])
-
         events = pygame.event.get()
         for event in events:
             if event.type == pygame.KEYDOWN:
