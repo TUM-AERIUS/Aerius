@@ -6,6 +6,16 @@ import numpy as np
 class BB_CNN:
 	"""
 	Convolutional neural network to predict a bounding box around an object.
+	
+	Network architecture
+	(Conv - ReLu - Max Pool) * M - (Fc - ReLu - Dropout) * N - Fc
+	
+	Output
+	out[, 0]: score for probability, i.e. probability = sigmoid(score), 
+	out[, 1]: rel. x coord of bounding box
+	out[, 2]: rel. y coord of bounding box
+	out[, 3]: logarithm of rel. width of bounding box
+	out[, 4]: logarithm of rel. height of bounding box
 	"""
 
 	def __init__(self, kernel_size = [3], kernel_stride = [1], num_filters = [4],
@@ -13,6 +23,16 @@ class BB_CNN:
 			  weight_scale = 0.001, loss_bb_weight = 0.5, file_name = None):
 		"""
 		Initialize the bounding boxes CNN by storing its characteristics
+		:param kernel_size: list of kernel sizes; all kernels are quadratic
+		:param kernel_stride: list of strides of convolutional layers
+		:param num_filters: list of number of filters of convolutional layers
+		:param pool_size: list of pool sizes; all pool layers use quadratic kernels; if you do not want a pool after a convolutional layer, set pool_size = 1
+		:param pool_stride: list of pool strides; if you do not want a pool after a convolutional layer, set pool_stride = 1
+		:param hidden_dim: list of number of hidden units of fully connected layers
+		:param dropout: dropout probability; set to 0 to not use dropout
+		:param weight_scale: max value of positiv truncated normal distribution to draw weights from
+		:param loss_bb_weight: weight for bounding boxes L2 norm loss in total loss (bb loss +  cross entropy loss of classification)
+		:param file_name: file name of numpy file where weights are stored in
 		"""
 		self.kernel_size = kernel_size
 		self.kernel_stride = kernel_stride
@@ -36,6 +56,7 @@ class BB_CNN:
 		"""
 		Method to build the computational graph
 		:param x: batch of images of size [batch_size, height, width, in_channels]
+		:param train_mode: True for training, False or None otherwise. Dropout is only done during training
 		"""
 		_, height, width, in_channels = x.get_shape().as_list()
 		self.out = x
