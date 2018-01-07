@@ -10,7 +10,7 @@ class BB_CNN:
 
 	def __init__(self, kernel_size = [3], kernel_stride = [1], num_filters = [4],
 			  pool_size = [2], pool_stride = [2], hidden_dim = [100], dropout = 0.5, 
-			  weight_scale = 0.001, loss_bb_weight = 0.5):
+			  weight_scale = 0.001, loss_bb_weight = 0.5, file_name = None):
 		"""
 		Initialize the bounding boxes CNN by storing its characteristics
 		"""
@@ -23,6 +23,13 @@ class BB_CNN:
 		self.dropout = dropout
 		self.weight_scale = 0.001
 		self.loss_bb_weight = loss_bb_weight
+		self.var_dict = {}
+		
+		# Load coefficients if file name is provided
+		if file_name is not None:
+			self.data_dict = np.load(file_name, encoding='latin1').item()
+		else:
+			self.data_dict = None
 	
 	
 	def build(self, x, train_mode=None):
@@ -36,14 +43,20 @@ class BB_CNN:
 		# Convolutional layers
 		num_filters = self.num_filters
 		num_filters.insert(0, in_channels)
+		pool_count = 1
+		conv_count = 1
 		for i in range(len(self.kernel_size)):
 			self.out = self.conv_layer(self.out, self.kernel_size[i], self.kernel_stride[i], 
-								num_filters[i], num_filters[i + 1], 'conv' + str(i + 1))
+						num_filters[i], num_filters[i + 1], 'conv' + str(pool_count) + '_' + str(conv_count))
+			conv_count += 1
 			height = np.ceil(height / self.kernel_stride[i]).astype('int')
 			width = np.ceil(width / self.kernel_stride[i]).astype('int')
-			self.out = self.max_pool(self.out, self.pool_size[i], self.pool_stride[i], 'pool' + str(i + 1))
-			height = np.ceil(height / self.pool_stride[i]).astype('int')
-			width = np.ceil(width / self.pool_stride[i]).astype('int')
+			if (self.pool_size[i] > 1) & (self.pool_stride[i] > 1):
+				self.out = self.max_pool(self.out, self.pool_size[i], self.pool_stride[i], 'pool' + str(pool_count))
+				height = np.ceil(height / self.pool_stride[i]).astype('int')
+				width = np.ceil(width / self.pool_stride[i]).astype('int')
+				pool_count += 1
+				conv_count = 1
 		
 		# Fully connected layers
 		hidden_dim = self.hidden_dim
@@ -55,7 +68,7 @@ class BB_CNN:
 				self.out = tf.cond(train_mode, lambda: tf.nn.dropout(self.out, self.dropout), lambda: self.out)
 		
 		# Output layer
-		self.out = self.fc_layer(self.out, hidden_dim[-1], 5, 'fc' + str(len(hidden_dim)))
+		self.out = self.fc_layer(self.out, hidden_dim[-1], 5, 'out')
 	
 	
 	def predict(self):
@@ -96,7 +109,7 @@ class BB_CNN:
 		"""
 		with tf.variable_scope(name):
 			filters, biases = self.get_conv_var(size, in_channels, out_channels, name)
-			
+				
 			out_conv = tf.nn.conv2d(x, filters, [1, stride, stride, 1], padding='SAME')
 			out_bias = tf.nn.bias_add(out_conv, biases)
 			out_relu = tf.nn.relu(out_bias)
@@ -120,10 +133,10 @@ class BB_CNN:
 		Create parameters of convolutional layer as tf.Variable
 		"""
 		initial_value = tf.truncated_normal([filter_size, filter_size, in_channels, out_channels], 0.0, self.weight_scale)
-		filters = tf.Variable(initial_value, name = name + "_filters")
+		filters = self.get_var(initial_value, name, 0, name + "_filters")
 		
 		initial_value = tf.truncated_normal([out_channels], 0.0, self.weight_scale)
-		biases = tf.Variable(initial_value, name = name + "_biases")
+		biases = self.get_var(initial_value, name, 1, name + "_biases")
 		
 		return filters, biases
 	
@@ -133,10 +146,40 @@ class BB_CNN:
 		Create parameters of fully connected layer as tf.Variable
 		"""
 		initial_value = tf.truncated_normal([in_size, out_size], 0.0, self.weight_scale)
-		weights = tf.Variable(initial_value, name = name + "_weights")
+		weights = self.get_var(initial_value, name, 0, name + "_weights")
 		
 		initial_value = tf.truncated_normal([out_size], 0.0, self.weight_scale)
-		biases = tf.Variable(initial_value, name = name + "_biases")
+		biases = self.get_var(initial_value, name, 1, name + "_biases")
 		
 		return weights, biases
+	
+	
+	def get_var(self, initial_value, name, idx, var_name):
+		if self.data_dict is not None and name in self.data_dict:
+			value = self.data_dict[name][idx]
+		else:
+			value = initial_value
+		
+		var = tf.Variable(value, name=var_name)
+		
+		self.var_dict[(name, idx)] = var
+
+		return var
+	
+	
+	def save(self, sess, file_name="./bb_cnn.npy"):
+		"""
+		Save variables to file
+		"""
+		data_dict = {}
+		
+		for (name, idx), var in list(self.var_dict.items()):
+			var_out = sess.run(var)
+			if name not in data_dict:
+				data_dict[name] = {}
+			data_dict[name][idx] = var_out
+		
+		np.save(file_name, data_dict)
+		
+		return file_name
 	
