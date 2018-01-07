@@ -98,10 +98,10 @@ class BB_CNN:
 		Can only be used after network was build!
 		"""
 		score_prob, score_pos, score_size = tf.split(self.out, [1, 2, 2], 1)
-		prob = tf.sigmoid(score_prob)
+		self.score_prob = tf.reshape(score_prob, [-1])
+		self.pred_prob = tf.sigmoid(self.score_prob)
 		pos = tf.map_fn(lambda x: tf.minimum(tf.nn.relu(x), tf.constant(1.)), score_pos)
 		size = tf.minimum(tf.exp(score_size), 1. - pos)
-		self.pred_prob = tf.reshape(prob, [-1])
 		self.pred_bb = tf.concat([pos, size], 1)
 	
 	
@@ -112,8 +112,9 @@ class BB_CNN:
 		:param target_prob: indicator whether object is there or not
 		:param target_bb: ground truth coordinates of the bounding box
 		"""
-		loss_bb = tf.reduce_mean((self.pred_bb - target_bb) ** 2)
-		loss_prob = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=target_prob, logits=self.pred_prob))
+		weight_sum = tf.reduce_sum(target_prob)
+		loss_bb = tf.cond(tf.greater(weight_sum, 0), lambda: tf.reduce_sum(target_prob * tf.reduce_mean((self.pred_bb - target_bb) ** 2, 1)) / tf.reduce_sum(target_prob), lambda: 0.)
+		loss_prob = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=target_prob, logits=self.score_prob))
 		self.loss = self.loss_bb_weight * loss_bb + (1 - self.loss_bb_weight) * loss_prob
 	
 	
