@@ -70,12 +70,12 @@ class BB_CNN:
 			self.out = self.conv_layer(self.out, self.kernel_size[i], self.kernel_stride[i], 
 						num_filters[i], num_filters[i + 1], 'conv' + str(pool_count) + '_' + str(conv_count))
 			conv_count += 1
-			height = np.ceil(height / self.kernel_stride[i]).astype('int')
-			width = np.ceil(width / self.kernel_stride[i]).astype('int')
+			height = np.ceil(1.0 * height / self.kernel_stride[i]).astype('int')
+			width = np.ceil(1.0 * width / self.kernel_stride[i]).astype('int')
 			if (self.pool_size[i] > 1) & (self.pool_stride[i] > 1):
 				self.out = self.max_pool(self.out, self.pool_size[i], self.pool_stride[i], 'pool' + str(pool_count))
-				height = np.ceil(height / self.pool_stride[i]).astype('int')
-				width = np.ceil(width / self.pool_stride[i]).astype('int')
+				height = np.ceil(1.0 * height / self.pool_stride[i]).astype('int')
+				width = np.ceil(1.0 * width / self.pool_stride[i]).astype('int')
 				pool_count += 1
 				conv_count = 1
 		
