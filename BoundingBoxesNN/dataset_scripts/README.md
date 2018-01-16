@@ -1,7 +1,7 @@
-#Dataset Scripts
+# Dataset Scripts
 This folder contains scripts to manipulate and convert Imglab annotation files.
 
-##Files
+## Files
 - **`extract_images.sh`**: Extracts png images from .h264. The result is a single folder containing all images, as well as
  a training, validation and test annotation file. Before the script is executed, all .h264 files and all corresponding 
  annotations (imageX.xml) have to be located in the current folder. Which images will belong to train, validation or 
@@ -20,7 +20,7 @@ This folder contains scripts to manipulate and convert Imglab annotation files.
  the following command: <br>
 `git clone https://github.com/tensorflow/models/archive/master.zip`
 
-##Conversion Pipeline
+## Conversion Pipeline
 In order to obtain the current training, validation and test TFRecords, the following steps were taken 
 (paths to scripts should be adjusted accordingly or coppied into the current folder):
 1. Download all 20 videos (.h264) and corresponding annotations (.xml) into a single folder
