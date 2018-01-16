@@ -1,3 +1,8 @@
 **/.idea
 **/*.ino
 **/*.pyc
+BoundingBoxesNN/train.record
+BoundingBoxesNN/val.record
+BoundingBoxesNN/.ipynb_checkpoints
+BoundingBoxesNN/Test.ipynb
+BoundingBoxesNN/vgg16.npy
