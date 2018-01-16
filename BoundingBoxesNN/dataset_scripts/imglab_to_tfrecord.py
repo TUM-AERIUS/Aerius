@@ -1,5 +1,6 @@
 import argparse
 import subprocess
+import shutil
 import os
 import hashlib
 import io
@@ -11,6 +12,7 @@ from functools import reduce
 from lxml import etree
 from PIL import Image
 import tensorflow as tf
+os.environ["TF_CPP_MIN_LOG_LEVEL"]="2" # disable tf debug logging
 
 from object_detection.utils import dataset_util
 from object_detection.utils import label_map_util
@@ -136,7 +138,7 @@ class Converter:
 
 
     # The following two helper functions perform the actual conversion to TFRecord
-    # The code is mostly CTRL+C/CTRL+V from the original example in the TF Object Detection github   ``\_(^u^)_/´´
+    # The code is mostly CTRL+C/CTRL+V from the original example in the TF Object Detection github   \_(^u^)_/
     # (models/research/object_detection/dataset_tools/create_pascal_tf_record.py)
     def _dict_to_tf_example(self, data, label_map_dict, image_subdirectory, ignore_difficult_instances=False):
         """Convert XML derived dict to tf.Example proto.
@@ -255,27 +257,33 @@ class Converter:
         tfrecord_out = tfrecord_out if tfrecord_out else os.path.join(dir_img, imglab_filename + '.record')
 
         # If rmempty is set, save a backup of the previous imglab_file and remove empty images from imglab_file
-        imglab_file_backup = imglab_file + '_BACKUP'
+        imglab_file_backup = imglab_file + '__i_t_tfr_BACKUP'
         if rmempty:
-            subprocess.call(["cp", imglab_file, imglab_file_backup])
-            subprocess.call(["imglab", "--rmempty " + imglab_file])
+            print('Removing empty images...')
+            subprocess.call(["imglab", "--rmempty", imglab_file])
+            subprocess.call(["mv", imglab_file, imglab_file_backup])
             subprocess.call(["mv", imglab_file+".rmempty.xml", imglab_file])
 
         # Convert from Imglab to Pascal VOC first
+        print('Converting from Imglab to Pascal VOC...')
         pascal_voc_dir = self.convert_imglab_to_pascalvoc(imglab_file)
 
         # Create labelmap
+        print('Creating label map...')
         label_map_out = self.create_label_map(imglab_file, out=label_map_out)
 
         # Convert from Pascal VOC to TFRecord, using the created labelmap
-        examples = os.path.join(pascal_voc_dir + "examples.txt")
+        print('Converting from Pascal VOC to TFRecord...')
+        examples = os.path.join(pascal_voc_dir, "examples.txt")
         tfrecord_out = self.convert_pascalvoc_to_tfrecord(dir_img, pascal_voc_dir, label_map_out, tfrecord_out, examples)
 
         # Cleanup pascal voc files and, if rmempty was set, restore original imglab file
-        subprocess.call(["rm", "-r " + pascal_voc_dir])
+        print('Cleaning up...')
+        shutil.rmtree(os.path.join(os.getcwd(), pascal_voc_dir))
         if rmempty:
             subprocess.call(["mv", imglab_file_backup, imglab_file])
 
+        print('done!')
         return tfrecord_out
 
 
