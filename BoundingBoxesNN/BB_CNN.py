@@ -20,7 +20,8 @@ class BB_CNN:
 
 	def __init__(self, kernel_size = [3], kernel_stride = [1], num_filters = [4],
 			  pool_size = [2], pool_stride = [2], hidden_dim = [100], dropout = 0.5, 
-			  weight_scale = 0.001, loss_bb_weight = 0.5, file_name = None):
+			  weight_decay = 1e-4, weight_decay_bb = 1e-2, weight_scale = 0.001,
+			  loss_bb_weight = 0.5, file_name = None):
 		"""
 		Initialize the bounding boxes CNN by storing its characteristics
 		:param kernel_size: list of kernel sizes; all kernels are quadratic
@@ -41,6 +42,8 @@ class BB_CNN:
 		self.pool_stride = pool_stride
 		self.hidden_dim = hidden_dim
 		self.dropout = dropout
+		self.weight_decay = weight_decay
+		self.weight_decay_bb = weight_decay_bb
 		self.weight_scale = 0.001
 		self.loss_bb_weight = loss_bb_weight
 		self.var_dict = {}
@@ -97,7 +100,8 @@ class BB_CNN:
 		Method to get the prediction for the bounding box
 		Can only be used after network was build!
 		"""
-		score_prob, score_pos, score_size = tf.split(self.out, [1, 2, 2], 1)
+		score_prob, self.score_bb = tf.split(self.out, [1, 4], 1)
+		score_pos, score_size = tf.split(self.score_bb, [2, 2], 1)
 		self.score_prob = tf.reshape(score_prob, [-1])
 		self.pred_prob = tf.sigmoid(self.score_prob)
 		pos = tf.map_fn(lambda x: tf.minimum(tf.nn.relu(x), tf.constant(1.)), score_pos)
@@ -112,10 +116,22 @@ class BB_CNN:
 		:param target_prob: indicator whether object is there or not
 		:param target_bb: ground truth coordinates of the bounding box
 		"""
+		# BB loss
 		weight_sum = tf.reduce_sum(target_prob)
-		loss_bb = tf.cond(tf.greater(weight_sum, 0), lambda: tf.reduce_sum(target_prob * tf.reduce_mean((self.pred_bb - target_bb) ** 2, 1)) / tf.reduce_sum(target_prob), lambda: 0.)
+		abs_diff = tf.abs(self.score_bb - target_bb)
+		abs_diff_lt_1 = tf.less(abs_diff, 1)
+		loss_bb = tf.cond(tf.greater(weight_sum, 0), lambda: tf.reduce_sum(target_prob * tf.reduce_sum(tf.where(abs_diff_lt_1, 0.5 * tf.square(abs_diff), abs_diff - 0.5), 1)) / tf.reduce_sum(target_prob), lambda: 0.)
+		# Classification loss
 		loss_prob = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=target_prob, logits=self.score_prob))
-		self.loss = self.loss_bb_weight * loss_bb + (1 - self.loss_bb_weight) * loss_prob
+		# Regularization loss
+		regularization_variables = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+		regularizer = tf.contrib.layers.l2_regularizer(self.weight_decay)
+		loss_reg = tf.contrib.layers.apply_regularization(regularizer, regularization_variables)
+		weight_out = self.var_dict[('out', 0)]
+		bias_out = self.var_dict[('out', 1)]
+		loss_reg_bb = self.weight_decay_bb * (tf.nn.l2_loss(tf.slice(weight_out, [0, 1], [-1, -1])) + tf.nn.l2_loss(tf.slice(bias_out, [1], [-1])))
+		#self.loss = self.loss_bb_weight * loss_bb + loss_prob + loss_reg + loss_reg_bb
+		self.loss = loss_bb
 	
 	
 	def max_pool(self, x, size, stride, name):
@@ -154,10 +170,12 @@ class BB_CNN:
 		"""
 		Create parameters of convolutional layer as tf.Variable
 		"""
-		initial_value = tf.truncated_normal([filter_size, filter_size, in_channels, out_channels], 0.0, self.weight_scale)
+		initial_value = tf.random_normal([filter_size, filter_size, in_channels, out_channels], 0.0, self.weight_scale)
 		filters = self.get_var(initial_value, name, 0, name + "_filters")
+		if name != 'out':
+			tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES, filters)
 		
-		initial_value = tf.truncated_normal([out_channels], 0.0, self.weight_scale)
+		initial_value = tf.random_normal([out_channels], 0.0, self.weight_scale)
 		biases = self.get_var(initial_value, name, 1, name + "_biases")
 		
 		return filters, biases
@@ -167,10 +185,12 @@ class BB_CNN:
 		"""
 		Create parameters of fully connected layer as tf.Variable
 		"""
-		initial_value = tf.truncated_normal([in_size, out_size], 0.0, self.weight_scale)
+		initial_value = tf.random_normal([in_size, out_size], 0.0, self.weight_scale)
 		weights = self.get_var(initial_value, name, 0, name + "_weights")
+		if name != 'out':
+			tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES, weights)
 		
-		initial_value = tf.truncated_normal([out_size], 0.0, self.weight_scale)
+		initial_value = tf.random_normal([out_size], 0.0, self.weight_scale)
 		biases = self.get_var(initial_value, name, 1, name + "_biases")
 		
 		return weights, biases
