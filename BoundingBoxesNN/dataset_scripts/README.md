@@ -14,6 +14,9 @@ This folder contains scripts to manipulate and convert Imglab annotation files.
 
 - **`remove_invalid_values.py`**: Changes all bounding boxes of the given imglab annotation file, which have boundaries that lie outside of the corresponding image.
 
+- **`resize_images.py`**: Resize one or multiple imglab annotation file(s) and all corresponding images to a certain size.
+If the target size does not have the same aspect ratios as the original images, the smaller size will be padded with black.
+
 - **`imglab_to_tfrecord.py`**: Converts the given imglab annotation file to tfrecord. In order to do so, a label map is first created and the annotations are converted to *Pascal VOC* format, before using the label map to convert images and *Pascal VOC* annotations to *TFRecord*
 
 **Note:** *imglab_to_tfrecord.py* requires packages from the tensorflow object detection api, which can be obtained using
@@ -31,7 +34,9 @@ In order to obtain the current training, validation and test TFRecords, the foll
     - `python remove_invalid_values.py train.xml`
     - `python remove_invalid_values.py val.xml`
     - `python remove_invalid_values.py test.xml`
-6. Convert all annotations with corresponding images to TFRecord:
+6. Apply other Modifications as needed. This would for instance include resizing the image via resize_images.py or other
+modifications that can be performed with standard imglab commands (flip, shuffle, rotate, ...)
+7. Convert all annotations with corresponding images to TFRecord:
     - `python imglab_to_tfrecord.py train.xml`
     - `python imglab_to_tfrecord.py val.xml`
     - `python imglab_to_tfrecord.py test.xml`
