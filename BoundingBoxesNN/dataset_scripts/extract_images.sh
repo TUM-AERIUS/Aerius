@@ -15,7 +15,7 @@ for i in {1..20}; do
     declare f=labels"$i".xml
     declare f_d=photos_"$i"
 
-    echo extracting video "$i"...
+    echo "Extracting video $i..."
 
     mkdir "$f_d"
     ffmpeg -loglevel error -i test$i.h264 "$f_d"/image-%03d.png
@@ -32,7 +32,7 @@ for i in {1..20}; do
 done
 
 # Change the file path of all imagelab files to foldername_filename (currently hard coded due to different formats)
-echo adjusting file paths...
+echo "Adjusting file paths..."
 for i in {1..5}; do
     sed -i -e "s/photos_${i}\/\(image\-\d*\)/photos_${i}_\1/g" photos_"$i"/labels"$i".xml
 done
@@ -45,7 +45,7 @@ done
 
 # Merge all annotations
 # Create folder and empty annotations files
-echo merging annotations...
+echo "Merging annotations..."
 mkdir merged
 imglab -c train.xml
 imglab -c val.xml
@@ -74,8 +74,9 @@ mv train.xml merged/
 mv val.xml merged/
 mv test.xml merged/
 
+
 # Cleanup
-echo cleaning up...
+echo "Cleaning up..."
 for i in {1..20}; do
     rm -r photos_$i
 done
