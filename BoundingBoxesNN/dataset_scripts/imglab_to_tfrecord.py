@@ -6,6 +6,7 @@ import hashlib
 import io
 import logging
 import re
+import sys
 
 from functools import reduce
 
@@ -19,6 +20,17 @@ from object_detection.utils import label_map_util
 
 class Converter:
 
+    def __init__(self):
+        self._REGEX_IMAGE_END = r".*</image>.*"
+        self._REGEX_IMAGE_START = r".*<image file='(.*\.\w*)'>.*"
+        self._REGEX_BOX_START = r".*<box top='\d*' left='\d*' width='\d*' height='\d*'>.*"
+        self._REGEX_TOP = r"top='(-?\d*)'"
+        self._REGEX_LEFT = r"left='(-?\d*)'"
+        self._REGEX_WIDTH = r"width='(-?\d*)'"
+        self._REGEX_HEIGHT = r"height='(-?\d*)'"
+        self._REGEX_LABEL = r".*<label>(.*)</label>.*"
+        self._REGEX_BOX_END = r".*</box>.*"
+
     # Split a given path into directory, filename and extension
     def _split_path_into_dir_filename_and_extension(self, path):
         directory = os.path.dirname(path)
@@ -28,6 +40,28 @@ class Converter:
         filename = reduce(lambda x, y: str(x)+"."+str(y), base_parts[1:-1], base_parts[0])
         ext = base_parts[-1]
         return directory, filename, ext
+
+
+    # Convert all images and annotations corresponding to input_imglab_file to jpg and save the result to output_imglab_file.
+    # Returns a list of paths to all created images
+    def png_to_jpg(self, input_imglab_file, output_imglab_file):
+        created_images = []
+        with open(input_imglab_file, 'r') as f_in:
+            with open(output_imglab_file, 'w+') as f_out:
+                for line in f_in:
+                    # Change png images to jpg
+                    if re.match(self._REGEX_IMAGE_START, line) and re.search(self._REGEX_IMAGE_START, line).group(1).endswith(".png"):
+                        # Convert image
+                        filepath = re.search(self._REGEX_IMAGE_START, line).group(1)
+                        new_filepath = filepath[:-4] + ".jpg"
+                        with Image.open(filepath) as img:
+                            img.convert('RGB').save(new_filepath)
+                            created_images.append(new_filepath)
+                        # Change filename in imglab file
+                        f_out.write(r"\t<image file='" + new_filepath + r"'>")
+                    else:
+                        f_out.write(line)
+        return created_images
 
 
     # Converts given imglab file to Pascal VOC
@@ -57,22 +91,22 @@ class Converter:
         with open(os.path.join(dir_out, 'examples.txt'), 'w+') as f_examples:
             with open(imglab_file, 'r') as f_in:
                 for line in f_in:
-                    if not in_image and re.match(r".*<image file=.*>.*", line):
+                    if not in_image and re.match(self._REGEX_IMAGE_START, line):
                         in_image = True
-                        filepath = (re.search(r"file='(.*\.\w*)'", line).group(1))
+                        filepath = (re.search(self._REGEX_IMAGE_START, line).group(1))
                         with Image.open(dir_img + filepath) as img:
                             img_w, img_h = img.size
                     elif in_image:
-                        if re.match(r".*<box top='\d*' left='\d*' width='\d*' height='\d*'>.*", line):
+                        if re.match(self._REGEX_BOX_START, line):
                             in_box = True
-                            l = int(re.search(r"left='(-?\d*)'", line).group(1))
-                            w = int(re.search(r"width='(-?\d*)'", line).group(1))
-                            t = int(re.search(r"top='(-?\d*)'", line).group(1))
-                            h = int(re.search(r"height='(-?\d*)'", line).group(1))
+                            t = int(re.search(self._REGEX_TOP, line).group(1))
+                            l = int(re.search(self._REGEX_LEFT, line).group(1))
+                            w = int(re.search(self._REGEX_WIDTH, line).group(1))
+                            h = int(re.search(self._REGEX_HEIGHT, line).group(1))
                             r = l + w
                             b = t + h
-                        if in_box and re.match(r".*<label>.*</label>.*", line):
-                            label = re.search(r"<label>(.*)</label>", line).group(1)
+                        if in_box and re.match(self._REGEX_LABEL, line):
+                            label = re.search(self._REGEX_LABEL, line).group(1)
                             line_list.append("\t<object>\n")
                             line_list.append("\t\t<name>" + str(label) + "</name>\n")
                             line_list.append("\t\t<pose>unknown</pose>\n")
@@ -86,9 +120,9 @@ class Converter:
                             line_list.append("\t\t</bndbox>\n")
                             line_list.append("\t\t<difficult>0</difficult>\n")
                             line_list.append("\t</object>\n")
-                        if in_box and re.match(r".*</box>.*", line):
+                        if in_box and re.match(self._REGEX_BOX_END, line):
                             in_box = False
-                        elif re.match(r".*</image>.*", line):
+                        elif re.match(self._REGEX_IMAGE_END, line):
                             in_image = False
                             filename = os.path.basename(filepath)
                             f_examples.write(filename + "\n")
@@ -112,7 +146,6 @@ class Converter:
                                 line_list = []
                                 f_out.write("</annotation>")
         # End of spaghetti magic. You have seen some shit, haven't you? ???(>o__O)>???
-
         return dir_out
 
 
@@ -256,12 +289,16 @@ class Converter:
         # If output directory is not provided, set to default (input_dir/annotations_VOC/)
         tfrecord_out = tfrecord_out if tfrecord_out else os.path.join(dir_img, imglab_filename + '.record')
 
-        # If rmempty is set, save a backup of the previous imglab_file and remove empty images from imglab_file
-        imglab_file_backup = imglab_file + '__i_t_tfr_BACKUP'
+        # Save a backup of the imglab file (which will be restored at the end) and convert all .pngs to jpg
+        imglab_file_backup = imglab_file + '.i_t_tfr_BACKUP'
+        print('Converting .png images to .jpg...')
+        subprocess.call(["mv", imglab_file, imglab_file_backup])
+        created_images = self.png_to_jpg(imglab_file_backup, imglab_file)
+
+        # If rmempty is set, remove empty images from the imglab_file
         if rmempty:
             print('Removing empty images...')
             subprocess.call(["imglab", "--rmempty", imglab_file])
-            subprocess.call(["mv", imglab_file, imglab_file_backup])
             subprocess.call(["mv", imglab_file+".rmempty.xml", imglab_file])
 
         # Convert from Imglab to Pascal VOC first
@@ -280,8 +317,9 @@ class Converter:
         # Cleanup pascal voc files and, if rmempty was set, restore original imglab file
         print('Cleaning up...')
         shutil.rmtree(os.path.join(os.getcwd(), pascal_voc_dir))
-        if rmempty:
-            subprocess.call(["mv", imglab_file_backup, imglab_file])
+        for created_image in created_images:
+            os.remove(created_image)
+        subprocess.call(["mv", imglab_file_backup, imglab_file])
 
         print('done!')
         return tfrecord_out
@@ -290,11 +328,12 @@ class Converter:
 
 # Create argument parser
 def create_parser():
-    parser = argparse.ArgumentParser(description='Convert imglab annotation file (.xml) to TFRecord (.record)')
-    parser.add_argument('imglab_file', help='Path to imglab annotation file (.xml)')
-    parser.add_argument('--output', '-o', help='Path to output TFRecord (.xml). Default: <input_filename>.record')
-    parser.add_argument('--label_map_output', '-l',
-                        help='Path to output label map. Default: <input_filename>_label_map.pbtxt')
+    parser = argparse.ArgumentParser(description='Convert imglab annotation file(s) (.xml) to TFRecord (.record)')
+    parser.add_argument('imglab_files', nargs='+', help='Path(s) to imglab annotation file(s) (.xml)')
+    parser.add_argument('--outputs', '-o', nargs='*',
+                        help='Path(s) to output TFRecord(s) (.xml). Default: <input_filename>.record')
+    parser.add_argument('--label_map_outputs', '-l',
+                        help='Path(s) to output label map(s). Default: <input_filename>_label_map.pbtxt')
     parser.add_argument('--rmempty', '-r', dest='rmempty', action='store_true',
                         help='Remove all images without annotation during conversion')
     parser.set_defaults(rmempty=False)
@@ -304,7 +343,26 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
     converter = Converter()
-    converter.convert_imglab_to_tfrecord(args.imglab_file, args.output, args.label_map_output, args.rmempty)
+
+    imglab_files = args.imglab_files
+    output_files = args.outputs
+    label_maps = args.label_map_outputs
+    rmempty = args.rmempty
+
+    # Exit if -o or -l was given but number of corresponding arguments does not match number of inputs
+    if output_files and len(output_files) != len(imglab_files):
+        sys.exit("InvalidArgumentException: -o flag was given, but number of outputs does not match number of inputs. "
+                 "Please provide one output path for each input file.")
+    if label_maps and len(label_maps) != len(imglab_files):
+        sys.exit("InvalidArgumentException: -l flag was given, but number of label map pahts does not match number of "
+                 "inputs. Please provide one label map path for each input file.")
+
+    label_maps = [None]*len(imglab_files) if label_maps is None else label_maps
+    output_files = [None]*len(imglab_files) if output_files is None else output_files
+
+    for i, imglab_file in enumerate(imglab_files):
+        print("STARTING CONVERTION OF " + imglab_file + ":")
+        converter.convert_imglab_to_tfrecord(imglab_file, output_files[i], label_maps[i], rmempty)
 
 if __name__ == '__main__':
     main()
