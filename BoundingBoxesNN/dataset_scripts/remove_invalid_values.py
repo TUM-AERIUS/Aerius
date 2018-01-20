@@ -1,15 +1,16 @@
 import argparse
 import re
 import subprocess
+import sys
 
 from PIL import Image
 
+REGEX_IMG = r".*<image file='(.*\.\w*)'>.*"
 REGEX_BOX = r".*<box.*>.*"
 REGEX_T = r"top='(-?\d*)'"
 REGEX_L = r"left='(-?\d*)'"
 REGEX_W = r"width='(-?\d*)'"
 REGEX_H = r"height='(-?\d*)'"
-REGEX_IMG = r".*<image file=.*>.*"
 
 # Remove all invalid values from the given input_file and save result as output_file
 def remove_invalid_values(input_file, output_file=None):
@@ -28,11 +29,11 @@ def remove_invalid_values(input_file, output_file=None):
                     t, l, w, h = notneg(t), notneg(l), notneg(w), notneg(h)
                     w = min(w, img_w - l)
                     h = min(h, img_h - t)
-                    f_out.write('    <box top=\'%i\' left=\'%i\' width=\'%i\' height=\'%i\'>\n' % (t,l,w,h))
+                    f_out.write('\t\t<box top=\'%i\' left=\'%i\' width=\'%i\' height=\'%i\'>\n' % (t,l,w,h))
                 else:
                     f_out.write(line)
                     if re.match(REGEX_IMG, line):
-                        filepath = (re.search(r"file='(.*\.\w*)'", line).group(1))
+                        filepath = (re.search(REGEX_IMG, line).group(1))
                         with Image.open(filepath) as img:
                             img_w, img_h = img.size
     if replace_input_file:
@@ -40,16 +41,29 @@ def remove_invalid_values(input_file, output_file=None):
 
 # Create argument parser
 def create_parser():
-    parser = argparse.ArgumentParser(description='Removes all invalid bounding box coordinates of a given imglab annotation file '
-                                                 'by adjusting the bounding box coordinates accordingly')
-    parser.add_argument('imglab_file', help='Path to imglab annotation file (.xml)')
-    parser.add_argument('--output', '-o', help='Select an output file. By default the input file itself is modified.')
+    parser = argparse.ArgumentParser(description='Removes all invalid bounding box coordinates of given imglab '
+                                                 'annotation files by adjusting bounding box coordinates accordingly.')
+    parser.add_argument('imglab_files', nargs='+', help='Path(s) to imglab annotation file(s) (.xml)')
+    parser.add_argument('--outputs', '-o', nargs='*',
+                        help='Select output files. By default, the input files are modified directly.')
     return parser
 
 def main():
     parser = create_parser()
     args = parser.parse_args()
-    remove_invalid_values(args.imglab_file, output_file=args.output)
+    imglab_files = args.imglab_files
+    output_files = args.outputs
+
+    # Exit if -o or -l was given but number of output paths does not match number of inputs
+    if output_files is not None and len(output_files) != len(imglab_files):
+        sys.exit("InvalidArgumentException: -o flag was given, but number of outputs does not match number of inputs. "
+                 "Please provide one output path for each input file.")
+
+    output_files = [None]*len(imglab_files) if output_files is None else output_files
+    for i, imglab_file in enumerate(imglab_files):
+        print("Processing " + imglab_file + "...")
+        remove_invalid_values(imglab_file, output_file=output_files[i])
+
 
 if __name__ == '__main__':
     main()

@@ -90,6 +90,7 @@ def main():
     output_size = (int(args.width), int(args.height))
     resizer = Resizer(output_size)
     for imglab_file in args.imglab_files:
+        print("Resizing " + imglab_file + "...")
         resizer.resize(imglab_file)
 
 if __name__ == '__main__':
