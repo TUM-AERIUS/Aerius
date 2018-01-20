@@ -130,8 +130,7 @@ class BB_CNN:
 		weight_out = self.var_dict[('out', 0)]
 		bias_out = self.var_dict[('out', 1)]
 		loss_reg_bb = self.weight_decay_bb * (tf.nn.l2_loss(tf.slice(weight_out, [0, 1], [-1, -1])) + tf.nn.l2_loss(tf.slice(bias_out, [1], [-1])))
-		#self.loss = self.loss_bb_weight * loss_bb + loss_prob + loss_reg + loss_reg_bb
-		self.loss = loss_bb
+		self.loss = self.loss_bb_weight * loss_bb + loss_prob + loss_reg + loss_reg_bb
 	
 	
 	def max_pool(self, x, size, stride, name):
@@ -209,7 +208,7 @@ class BB_CNN:
 		return var
 	
 	
-	def save(self, sess, file_name="./bb_cnn.npy"):
+	def save(self, sess, file_name='./bb_cnn.npy'):
 		"""
 		Save variables to file
 		"""
