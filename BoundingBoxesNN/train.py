@@ -41,17 +41,10 @@ dataset_val = dataset_val.concatenate(tf.data.TFRecordDataset('val.record'))
 dataset_val = dataset_val.concatenate(tf.data.TFRecordDataset('val_flipped.record'))
 dataset_val = dataset_val.shuffle(buffer_size=4000)
 dataset_val = dataset_val.batch(batch_size)
-dataset_train = dataset_train.repeat()
+dataset_val = dataset_val.repeat()
 iterator_val = dataset_val.make_initializable_iterator()
 next_element_val = iterator_val.get_next()
 
-
-# Define features for parsing the TFRecord file
-feature = {'image/encoded': tf.FixedLenFeature([], tf.string),
-           'image/object/bbox/xmin': tf.FixedLenSequenceFeature([], tf.float32, allow_missing=True, default_value = -1.),
-           'image/object/bbox/xmax': tf.FixedLenSequenceFeature([], tf.float32, allow_missing=True, default_value = 0.),
-           'image/object/bbox/ymin': tf.FixedLenSequenceFeature([], tf.float32, allow_missing=True, default_value = -1.),
-           'image/object/bbox/ymax': tf.FixedLenSequenceFeature([], tf.float32, allow_missing=True, default_value = 0.)}
 
 # Set up log files
 log_file = open(filename_log, 'w', 1)
@@ -76,6 +69,21 @@ with tf.Session(config=config) as sess:
     bb_net.predict()
     bb_net.loss(target_prob, target_bb)
     
+    # Build graph for parsing
+    # Define features for parsing the TFRecord file
+    feature = {'image/encoded': tf.FixedLenFeature([], tf.string),
+               'image/object/bbox/xmin': tf.FixedLenSequenceFeature([], tf.float32, allow_missing=True, default_value = -1.),
+               'image/object/bbox/xmax': tf.FixedLenSequenceFeature([], tf.float32, allow_missing=True, default_value = 0.),
+               'image/object/bbox/ymin': tf.FixedLenSequenceFeature([], tf.float32, allow_missing=True, default_value = -1.),
+               'image/object/bbox/ymax': tf.FixedLenSequenceFeature([], tf.float32, allow_missing=True, default_value = 0.)}
+    next_example = tf.placeholder(tf.string, [batch_size])
+    parser = tf.parse_example(next_example, features=feature)
+    
+    # Build graph for image decoding
+    encoded_images = tf.placeholder(tf.string, [batch_size])
+    image_decoder = tf.reverse(tf.map_fn(lambda var: tf.cast(tf.image.decode_jpeg(var), tf.float32), 
+                         encoded_images, dtype=tf.float32), [-1]) - tf.constant([[[[103.939, 116.779, 123.68]]]])
+    
     # Declare optimizer
     global_step = tf.Variable(0, trainable=False)
     learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step, num_train // batch_size, learning_decay_rate, staircase=False)
@@ -90,7 +98,7 @@ with tf.Session(config=config) as sess:
     for i in range(num_iter):
         next_example_train = sess.run(next_element_train)
         try:
-            parsed_out = sess.run(tf.parse_example(next_example_train, features=feature))
+            parsed_out = sess.run(parser, feed_dict={next_example: next_example_train})
             
             xmin = np.array(parsed_out['image/object/bbox/xmin'])
             xmax = np.array(parsed_out['image/object/bbox/xmax'])
@@ -102,8 +110,7 @@ with tf.Session(config=config) as sess:
                 xmax = ymax = np.array(batch_size * [[0.]])
             
             prob = list(map(lambda x: float(x[0] > -.5), xmin))
-            x = sess.run(tf.reverse(tf.map_fn(lambda var: tf.cast(tf.image.decode_jpeg(var), tf.float32), 
-                                              parsed_out['image/encoded'], dtype=tf.float32), [-1]) - tf.constant([[[[103.939, 116.779, 123.68]]]]))
+            x = sess.run(image_decoder, feed_dict={encoded_images: parsed_out['image/encoded']})
             sess.run(train_step, feed_dict={images: x, train_mode: use_dropout, target_prob: prob, 
                                             target_bb: np.concatenate((xmin, ymin, np.log(xmax - xmin), np.log(ymax - ymin)), axis = 1)})
         except Exception as ex:
@@ -122,7 +129,7 @@ with tf.Session(config=config) as sess:
             for j in range(num_val):
                 next_example_val = sess.run(next_element_train)
                 try:
-                    parsed_out = sess.run(tf.parse_example(next_example_val, features=feature))
+                    parsed_out = sess.run(parser, feed_dict={next_example: next_example_val})
 
                     xmin = np.array(parsed_out['image/object/bbox/xmin'])
                     xmax = np.array(parsed_out['image/object/bbox/xmax'])
@@ -135,8 +142,7 @@ with tf.Session(config=config) as sess:
 
                     prob = np.array(list(map(lambda x: float(x[0] > -.5), xmin)))
 
-                    x = sess.run(tf.reverse(tf.map_fn(lambda var: tf.cast(tf.image.decode_jpeg(var), tf.float32), 
-                                                      parsed_out['image/encoded'], dtype=tf.float32), [-1]) - tf.constant([[[[103.939, 116.779, 123.68]]]]))
+                    x = sess.run(image_decoder, feed_dict={encoded_images: parsed_out['image/encoded']})
                     net_prob = sess.run(bb_net.pred_prob, feed_dict={images: x, train_mode: False})
                     acc_train[j] = np.mean(np.abs(prob - 1. * (net_prob < .5)))
                     net_bb = sess.run(bb_net.pred_bb, feed_dict={images: x, train_mode: False})
@@ -149,7 +155,7 @@ with tf.Session(config=config) as sess:
                 
                 next_example_val = sess.run(next_element_val)
                 try:
-                    parsed_out = sess.run(tf.parse_example(next_example_val, features=feature))
+                    parsed_out = sess.run(parser, feed_dict={next_example: next_example_val})
 
                     xmin = np.array(parsed_out['image/object/bbox/xmin'])
                     xmax = np.array(parsed_out['image/object/bbox/xmax'])
@@ -162,8 +168,7 @@ with tf.Session(config=config) as sess:
 
                     prob = np.array(list(map(lambda x: float(x[0] > -.5), xmin)))
 
-                    x = sess.run(tf.reverse(tf.map_fn(lambda var: tf.cast(tf.image.decode_jpeg(var), tf.float32), 
-                                                      parsed_out['image/encoded'], dtype=tf.float32), [-1]) - tf.constant([[[[103.939, 116.779, 123.68]]]]))
+                    x = sess.run(image_decoder, feed_dict={encoded_images: parsed_out['image/encoded']})
                     net_prob = sess.run(bb_net.pred_prob, feed_dict={images: x, train_mode: False})
                     acc_val[j] = np.mean(np.abs(prob - 1. * (net_prob < .5)))
                     net_bb = sess.run(bb_net.pred_bb, feed_dict={images: x, train_mode: False})
