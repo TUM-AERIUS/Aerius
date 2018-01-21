@@ -48,11 +48,11 @@ class TargetTrackingPID:
 				int: The steering angle: Positive value means steering to the right.
 		"""
 
-		# error is difference between the target's and desired's x positions
+		# cross_track_error is difference between the target's and desired's x positions
 
-		dist = self.desired_x-self.target_x
+		cross_track_error = self.desired_x-self.target_x
 
-		self.PID.update(dist)
+		self.PID.update(cross_track_error)
 
 		if self.output > 0:
 			return self.steering_angle_d
