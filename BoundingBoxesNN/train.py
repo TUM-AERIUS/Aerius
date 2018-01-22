@@ -51,8 +51,7 @@ log_file = open(filename_log, 'w', 1)
 log_file.write('iteration,train loss,train pred acc,train bb mean abs err,val loss,val pred acc,val bb mean abs err\n')
 err_file = open('error.log', 'w', 1)
 
-config = tf.ConfigProto(device_count = {'GPU': 0})
-with tf.Session(config=config) as sess:
+with tf.Session() as sess:
     # Create network
     bb_net = BB_CNN.BB_CNN(kernel_size = 13 * [3], kernel_stride = 13 * [1],
                            num_filters =  2 * [64] + 2 * [128] + 3 * [256] + 6 * [512],
