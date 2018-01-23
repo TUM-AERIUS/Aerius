@@ -6,12 +6,20 @@ import cv2
 import os
 import time
 
+import BB_CNN
+from dataset_scripts import resize_images
+
 class Predictor:
-    def __init__(self, detection_model, label_map_path, detection_score_threshold=0.5):
-        self.detection_model = detection_model
+    def __init__(self, model, label_map_path, score_threshold=0.5):
+        self.model = model
         self._load_label_map(label_map_path)
-        self._initialize_graph()
-        self.detection_score_threshold = detection_score_threshold
+        # Set defaults
+        self.score_threshold = score_threshold
+        self.visualize = False
+        # Set default methods to work with localization model
+        self.predict = self._predict_with_localization_model
+        self.initialize_graph = self._initialize_localization_graph
+
 
     # Loads the label map specified in label_map_path, transforms it to a (id->display_name) dictionary and assigns it to self.label_map_dict
     def _load_label_map(self, label_map):
@@ -30,47 +38,92 @@ class Predictor:
                 if re.search(re_item_end, line):
                     label_map_dict[id] = display_name
         self.label_map_dict = label_map_dict
-        self.label_map_path = label_map
+
+
+    # Set up attributes for usage of a detection API model
+    def use_detection_model(self):
+        self.initialize_graph = self._initialize_detection_graph
+        self.predict = self._predict_with_detection_model
+
+    # Load localization model
+    def _initialize_localization_graph(self):
+        bb_net = BB_CNN.BB_CNN(kernel_size=13 * [3], kernel_stride=13 * [1],
+                               num_filters=2 * [64] + 2 * [128] + 3 * [256] + 6 * [512],
+                               pool_size=2 * [1, 2] + 3 * [1, 1, 2], pool_stride=2 * [1, 2] + 3 * [1, 1, 2],
+                               hidden_dim=2 * [4096], dropout=0.5, weight_decay_bb=0.0, weight_scale=1e-3,
+                               file_name=self.model, loss_bb_weight=1.0)
+        images = tf.placeholder(tf.float32, [1, 224, 224, 3])
+        bb_net.build(images)
+        self.graph = bb_net
+        self.graph_input_images = images
+
+    # Predict object bounding boxes with corresponding labels and scores for a given numpy image
+    def _predict_with_localization_model(self, image_np):
+        # Resize image
+        from PIL import Image
+        image = Image.fromarray(image_np, 'RGB')
+        image, _ = resize_images.resize_pil_image_with_padding(image, 224, 224)
+        image = np.array(image)
+        # Swap rgb to bgr
+        image = np.flip(image, 2)
+        # Substract image mean
+        mean = np.array([[[103.939, 116.779, 123.68]]])
+        image = image-mean
+        # Add image into empty array, because predictor expects a batch of images (with size 1)
+        input_image = np.array([image])
+        b = p = None
+        # Run localization model on image
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            (b, p) = self.graph.predict()
+            (b, p) = sess.run([b, p], feed_dict={self.graph_input_images: input_image})
+        b, p = np.squeeze(b), np.squeeze(p).item(0)
+        # change b format from [left, top, widht, height] to [top, left, bot, right]
+        b = np.array([b[1], b[0], b[1]+b[3], b[0]+b[2]])
+        return np.array([[b, p, 1]])
 
     # Load frozen detection model
-    def _initialize_graph(self):
-        self.detection_graph = tf.Graph()
-        with self.detection_graph.as_default():
+    def _initialize_detection_graph(self):
+        self.graph = tf.Graph()
+        with self.graph.as_default():
             od_graph_def = tf.GraphDef()
-            with tf.gfile.GFile(self.detection_model, 'rb') as fid:
+            with tf.gfile.GFile(self.model, 'rb') as fid:
                 serialized_graph = fid.read()
                 od_graph_def.ParseFromString(serialized_graph)
                 tf.import_graph_def(od_graph_def, name='')
 
-    # Predict object bounding boxes with corresponding labels and scores for a given numpy image
-    def predict(self, image_np):
-        with self.detection_graph.as_default():
-            with tf.Session(graph=self.detection_graph) as sess:
+    # Predict objects using a model trained with the tensorflow object detection API
+    def _predict_with_detection_model(self, image_np):
+        with self.graph.as_default():
+            with tf.Session(graph=self.graph) as sess:
                 # Expand dimensions since the model expects images to have shape: [1, None, None, 3]
                 image_np_expanded = np.expand_dims(image_np, axis=0)
-                image_tensor = self.detection_graph.get_tensor_by_name('image_tensor:0')
-                boxes = self.detection_graph.get_tensor_by_name('detection_boxes:0')
-                scores = self.detection_graph.get_tensor_by_name('detection_scores:0')
-                classes = self.detection_graph.get_tensor_by_name('detection_classes:0')
-                num_detections = self.detection_graph.get_tensor_by_name('num_detections:0')
+                image_tensor = self.graph.get_tensor_by_name('image_tensor:0')
+                boxes = self.graph.get_tensor_by_name('detection_boxes:0')
+                scores = self.graph.get_tensor_by_name('detection_scores:0')
+                classes = self.graph.get_tensor_by_name('detection_classes:0')
+                num_detections = self.graph.get_tensor_by_name('num_detections:0')
                 (boxes, scores, classes, num_detections) = sess.run(
                     [boxes, scores, classes, num_detections],
                     feed_dict={image_tensor: image_np_expanded})
                 return zip(np.squeeze(boxes), np.squeeze(scores), np.squeeze(classes))
 
+
     # Set self._visualize to true and creates the category index that will be needed for plotting
     def activate_visualization(self):
-        self._visualize = True
+        self.visualize = True
 
+    # Draw given detections onto the given image
     def _draw_detections(self, image, detections):
         image_h, image_w, _ = image.shape
         for (b, s, c) in detections:
-            if s >= self.detection_score_threshold:
+            if s >= self.score_threshold:
                 b_top, b_bot = int(b[0] * image_h), int(b[2] * image_h)
                 b_left, b_right = int(b[1] * image_w), int(b[3] * image_w)
                 label = self.label_map_dict[c]
                 cv2.rectangle(image, (b_left, b_top), (b_right, b_bot), (255, 0, 0), 2)
                 cv2.putText(image, label, (b_left, b_bot), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255), 1)
+
 
     # Periodically takes images from the primary camera and runs the detection model on them.
     # Detection continues until 'q' is pressed.
@@ -80,7 +133,7 @@ class Predictor:
             _, image_np = cap.read()
             detections = self.predict(image_np)
             # TODO: save detections or perform further computation
-            if self._visualize:
+            if self.visualize:
                 self._draw_detections(image_np, detections)
                 cv2.imshow("Predictor", image_np)
             # if the 'q' key was pressed, break from the loop
@@ -97,16 +150,16 @@ class Predictor:
         from picamera import PiCamera
         import time
         camera = PiCamera()
-        camera.resolution = (1280, 720)
-        camera.framerate = 32
-        rawCapture = PiRGBArray(camera, size=(1280, 720))
+        camera.resolution = (224, 126)
+        camera.framerate = 10
+        rawCapture = PiRGBArray(camera, size=camera.resolution)
         # warmup camera
         time.sleep(0.1)
         for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
             image_np = frame.array
             detections = self.predict(image_np)
             # TODO: save detections or perform further computation
-            if self._visualize:
+            if self.visualize:
                 self._draw_detections(image_np, detections)
                 cv2.imshow("Predictor", image_np)
             # Clear the stream in preparation for the next frame and if the 'q' key was pressed, break from the loop
@@ -115,7 +168,7 @@ class Predictor:
             if key == ord("q"):
                 break
 
-
+    # Run detection model on all images in image_dir.
     def process_image_directory(self, image_dir):
         # Set video_path and log dir to default if required
         video_path = os.path.join(os.getcwd(), 'detection_results.avi')
@@ -146,10 +199,10 @@ class Predictor:
                     f.write(str(c) + ', '
                             + '[' + str(b[0]) + '-' + str(b[2])
                             + ',' + str(b[1]) + '-' + str(b[3]) + ']\n')
-            if self._visualize:
+            if self.visualize:
                 # Initialize video before first frame
                 if image_num == 0:
-                    print('Creating video...')
+                    print(' -dCreating video...')
                     height, width, _ = image.shape
                     fourcc = cv2.VideoWriter_fourcc(*'XVID')
                     video = cv2.VideoWriter(video_path, fourcc, 10, (width, height))
@@ -169,6 +222,8 @@ def create_parser():
                         help="Path to frozen tensorflow model (.pb)")
     parser.add_argument('label_map',
                         help="Path to label_map (.pbtxt)")
+    parser.add_argument('--use_detection_model', '-d', dest='det_model', action='store_true',
+                        help="Set this flag when using a model trained with the detection API")
     parser.add_argument('--use_picam', '-p', dest='picam', action='store_true',
                         help="Set this flag when using picam of raspberry pi instead of regular webcams")
     parser.add_argument('--show', '-s', dest='visualize', action='store_true',
@@ -178,7 +233,7 @@ def create_parser():
                              "in the directory, instad on live camera images. When chosing this options, detection "
                              "results are logged to log files. If the -s flag is also set, a video of the detection "
                              "results will be created, instead of plotting them directly.")
-    parser.set_defaults(picam=False, visualize=False)
+    parser.set_defaults(det_model=False, picam=False, visualize=False)
     return parser
 
 def main():
@@ -186,15 +241,20 @@ def main():
     args = parser.parse_args()
     predictor = Predictor(args.model, args.label_map)
     image_dir = args.use_image_directory
+    # Determine model type and whether results should be plotted
+    if args.det_model:
+        predictor.use_detection_model()
+    if args.visualize:
+        predictor.activate_visualization()
+    # initialize detection graph
+    predictor.initialize_graph()
+    # Determine processing mode
     if image_dir:
         predictor.process_image_directory(image_dir)
+    elif args.picam:
+        predictor.process_picam()
     else:
-        if args.visualize:
-            predictor.activate_visualization()
-        if args.picam:
-            predictor.process_picam()
-        else:
-            predictor.process_webcam()
+        predictor.process_webcam()
 
 if __name__ == '__main__':
     main()

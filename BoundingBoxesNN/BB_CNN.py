@@ -107,6 +107,7 @@ class BB_CNN:
 		pos = tf.map_fn(lambda x: tf.minimum(tf.nn.relu(x), tf.constant(1.)), score_pos)
 		size = tf.minimum(tf.exp(score_size), 1. - pos)
 		self.pred_bb = tf.concat([pos, size], 1)
+		return (self.pred_bb, self.pred_prob)
 	
 	
 	def loss(self, target_prob, target_bb):
