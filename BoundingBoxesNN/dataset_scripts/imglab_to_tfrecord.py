@@ -58,7 +58,7 @@ class Converter:
                             img.convert('RGB').save(new_filepath)
                             created_images.append(new_filepath)
                         # Change filename in imglab file
-                        f_out.write(r"\t<image file='" + new_filepath + r"'>")
+                        f_out.write("\t" + r"<image file='" + new_filepath + r"'>" + "\n")
                     else:
                         f_out.write(line)
         return created_images
