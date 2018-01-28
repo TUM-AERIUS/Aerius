@@ -36,7 +36,7 @@ with tf.Session(config=config) as sess:
                            num_filters =  2 * [64] + 2 * [128] + 3 * [256] + 6 * [512],
                            pool_size = 2 * [1, 2] + 3 * [1, 1, 2], pool_stride = 2 * [1, 2] + 3 * [1, 1, 2],
                            hidden_dim = 2 * [4096], dropout = 0.5, weight_decay_bb = 0.0, weight_scale = 1e-3,
-                           file_name = '../Model/fc_layers/bb_cnn_vgg16_05.npy', loss_bb_weight = 1.0)
+                           file_name = 'vgg16.npy', loss_bb_weight = 1.0)
     
     # Build computational graph and calculate loss
     images = tf.placeholder(tf.float32, [batch_size, image_width, image_height, 3])
