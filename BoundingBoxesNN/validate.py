@@ -95,7 +95,7 @@ with tf.Session() as sess:
             sum_bb += np.sum(prob)
             
         except Exception as ex:
-            err_file.write(ex + '\n')
+            err_file.write(str(ex) + '\n')
                 
     if sum_bb == 0:
         mean_bb_err = 0.

@@ -1,7 +1,6 @@
 # Load packages
 import numpy as np
 import tensorflow as tf
-import matplotlib.pyplot as plt
 import BB_CNN
 
 
@@ -113,7 +112,7 @@ with tf.Session() as sess:
             sess.run(train_step, feed_dict={images: x, train_mode: use_dropout, target_prob: prob, 
                                             target_bb: np.concatenate((xmin, ymin, np.log(xmax - xmin), np.log(ymax - ymin)), axis = 1)})
         except Exception as ex:
-            err_file.write(ex + '\n')
+            err_file.write(str(ex) + '\n')
         
         # Log of learning progress (loss, acc, bb mean abs err)
         if (i + 1) % log_every == 0:
@@ -150,7 +149,7 @@ with tf.Session() as sess:
                     loss_train[j] = sess.run(bb_net.loss, feed_dict={images: x, train_mode: False, target_prob: prob, 
                                                                        target_bb: np.concatenate((xmin, ymin, np.log(xmax - xmin), np.log(ymax - ymin)), axis = 1)})
                 except Exception as ex:
-                    err_file.write(ex + '\n')
+                    err_file.write(str(ex) + '\n')
                 
                 next_example_val = sess.run(next_element_val)
                 try:
@@ -176,7 +175,7 @@ with tf.Session() as sess:
                     loss_val[j] = sess.run(bb_net.loss, feed_dict={images: x, train_mode: False, target_prob: prob, 
                                                                        target_bb: np.concatenate((xmin, ymin, np.log(xmax - xmin), np.log(ymax - ymin)), axis = 1)})
                 except Exception as ex:
-                    err_file.write(ex + '\n')
+                    err_file.write(str(ex) + '\n')
                     
             if sum_obj_train == 0:
                 mean_bb_err_train = 0.
