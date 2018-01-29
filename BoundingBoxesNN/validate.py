@@ -86,10 +86,10 @@ with tf.Session() as sess:
             net_prob = np.array(sess.run(bb_net.pred_prob, feed_dict={images: x, train_mode: False}) > .5)
             sum_pred += batch_size
             # Count true positive, etc.
-            tp += np.sum((prob == net_prob) & prob)
-            tn += np.sum((prob == net_prob) & (~prob))
-            fp += np.sum((prob != net_prob) & prob)
-            fn += np.sum((prob != net_prob) & (~prob))
+            tp += np.sum((prob == net_prob) & net_prob)
+            tn += np.sum((prob == net_prob) & (~net_prob))
+            fp += np.sum((prob != net_prob) & net_prob)
+            fn += np.sum((prob != net_prob) & (~net_prob))
             net_bb = sess.run(bb_net.pred_bb, feed_dict={images: x, train_mode: False})
             bb_err += np.sum(prob * np.mean(np.abs(np.concatenate((xmin, ymin, xmax - xmin, ymax - ymin), axis = 1) - net_bb), 1))
             sum_bb += np.sum(prob)
