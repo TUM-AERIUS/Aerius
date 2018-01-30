@@ -1,7 +1,6 @@
 # Load packages
 import numpy as np
 import tensorflow as tf
-import matplotlib.pyplot as plt
 import BB_CNN
 
 
@@ -29,13 +28,14 @@ log_file = open(filename_log, 'w', 1)
 log_file.write('num_data,tpr,tnr,fpr,fnr,mean_bb_err\n')
 err_file = open('error.log', 'w', 1)
 
-with tf.Session() as sess:
+config = tf.ConfigProto(device_count = {'GPU': 0})
+with tf.Session(config=config) as sess:
     # Create network
     bb_net = BB_CNN.BB_CNN(kernel_size = 13 * [3], kernel_stride = 13 * [1],
                            num_filters =  2 * [64] + 2 * [128] + 3 * [256] + 6 * [512],
                            pool_size = 2 * [1, 2] + 3 * [1, 1, 2], pool_stride = 2 * [1, 2] + 3 * [1, 1, 2],
                            hidden_dim = 2 * [4096], dropout = 0.5, weight_decay_bb = 0.0, weight_scale = 1e-3,
-                           file_name = 'vgg16.npy', loss_bb_weight = 1.0)
+                           file_name = '../Model/fc_layers/bb_cnn_vgg16_05.npy', loss_bb_weight = 1.0)
     
     # Build computational graph and calculate loss
     images = tf.placeholder(tf.float32, [batch_size, image_width, image_height, 3])
@@ -95,7 +95,7 @@ with tf.Session() as sess:
             sum_bb += np.sum(prob)
             
         except Exception as ex:
-            err_file.write(str(ex) + '\n')
+            err_file.write(ex + '\n')
                 
     if sum_bb == 0:
         mean_bb_err = 0.

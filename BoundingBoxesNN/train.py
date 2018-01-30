@@ -26,19 +26,15 @@ image_height = 224
 
 # Load train dataset
 dataset_train = tf.data.TFRecordDataset('train.record')
-dataset_train = dataset_train.concatenate(tf.data.TFRecordDataset('train_flipped.record'))
-dataset_train = dataset_train.shuffle(buffer_size=10000)
+dataset_train = dataset_train.shuffle(buffer_size=20000)
 dataset_train = dataset_train.batch(batch_size)
 dataset_train = dataset_train.repeat()
 iterator_train = dataset_train.make_initializable_iterator()
 next_element_train = iterator_train.get_next()
 
 # Load validation dataset
-dataset_val = tf.data.TFRecordDataset('test.record')
-dataset_val = dataset_val.concatenate(tf.data.TFRecordDataset('test_flipped.record'))
-dataset_val = dataset_val.concatenate(tf.data.TFRecordDataset('val.record'))
-dataset_val = dataset_val.concatenate(tf.data.TFRecordDataset('val_flipped.record'))
-dataset_val = dataset_val.shuffle(buffer_size=4000)
+dataset_val = tf.data.TFRecordDataset('val.record')
+dataset_val = dataset_val.shuffle(buffer_size=3900)
 dataset_val = dataset_val.batch(batch_size)
 dataset_val = dataset_val.repeat()
 iterator_val = dataset_val.make_initializable_iterator()
@@ -110,17 +106,17 @@ with tf.Session() as sess:
             prob = list(map(lambda x: float(x[0] > -.5), xmin))
             x = sess.run(image_decoder, feed_dict={encoded_images: parsed_out['image/encoded']})
             sess.run(train_step, feed_dict={images: x, train_mode: use_dropout, target_prob: prob, 
-                                            target_bb: np.concatenate((xmin, ymin, np.log(xmax - xmin), np.log(ymax - ymin)), axis = 1)})
+                                            target_bb: np.concatenate((xmin, ymin, xmax - xmin, ymax - ymin), axis = 1)})
         except Exception as ex:
-            err_file.write(str(ex) + '\n')
+            err_file.write(ex + '\n')
         
         # Log of learning progress (loss, acc, bb mean abs err)
         if (i + 1) % log_every == 0:
-            loss_train = np.zeros(num_val)
-            acc_train = np.zeros(num_val)
+            loss_train = -np.ones(num_val)
+            acc_train = -np.ones(num_val)
             bb_err_train = np.zeros(num_val)
-            loss_val = np.zeros(num_val)
-            acc_val = np.zeros(num_val)
+            loss_val = -np.ones(num_val)
+            acc_val = -np.ones(num_val)
             bb_err_val = np.zeros(num_val)
             sum_obj_train = 0
             sum_obj_val = 0
@@ -147,9 +143,9 @@ with tf.Session() as sess:
                     bb_err_train[j] = np.sum(prob * np.mean(np.abs(np.concatenate((xmin, ymin, xmax - xmin, ymax - ymin), axis = 1) - net_bb), 1))
                     sum_obj_train += np.sum(prob)
                     loss_train[j] = sess.run(bb_net.loss, feed_dict={images: x, train_mode: False, target_prob: prob, 
-                                                                       target_bb: np.concatenate((xmin, ymin, np.log(xmax - xmin), np.log(ymax - ymin)), axis = 1)})
+                                                                       target_bb: np.concatenate((xmin, ymin, xmax - xmin, ymax - ymin), axis = 1)})
                 except Exception as ex:
-                    err_file.write(str(ex) + '\n')
+                    err_file.write(ex + '\n')
                 
                 next_example_val = sess.run(next_element_val)
                 try:
@@ -173,9 +169,9 @@ with tf.Session() as sess:
                     bb_err_val[j] = np.sum(prob * np.mean(np.abs(np.concatenate((xmin, ymin, xmax - xmin, ymax - ymin), axis = 1) - net_bb), 1))
                     sum_obj_val += np.sum(prob)
                     loss_val[j] = sess.run(bb_net.loss, feed_dict={images: x, train_mode: False, target_prob: prob, 
-                                                                       target_bb: np.concatenate((xmin, ymin, np.log(xmax - xmin), np.log(ymax - ymin)), axis = 1)})
+                                                                       target_bb: np.concatenate((xmin, ymin, xmax - xmin, ymax - ymin), axis = 1)})
                 except Exception as ex:
-                    err_file.write(str(ex) + '\n')
+                    err_file.write(ex + '\n')
                     
             if sum_obj_train == 0:
                 mean_bb_err_train = 0.
@@ -185,8 +181,17 @@ with tf.Session() as sess:
                 mean_bb_err_val = 0.
             else:
                 mean_bb_err_val = np.sum(bb_err_val) / sum_obj_val
+            
+            flag = loss_train > -.5
+            if np.sum(flag) == 0.:
+                loss_train, loss_val, acc_train, acc_val = 4 * [0.]
+            else:
+                loss_train = np.sum(flag * loss_train) / np.sum(flag)
+                loss_val = np.sum(flag * loss_val) / np.sum(flag)
+                acc_train = np.sum(flag * acc_train) / np.sum(flag)
+                acc_val = np.sum(flag * acc_val) / np.sum(flag)
                 
-            log_file.write(str(i + 1) + ',' + str(np.mean(loss_train)) + ',' + str(np.mean(acc_train)) + ',' + str(mean_bb_err_train) + ',' + str(np.mean(loss_val)) + ',' + str(np.mean(acc_val)) + ',' + str(mean_bb_err_val) + '\n')
+            log_file.write(str(i + 1) + ',' + str(loss_train) + ',' + str(acc_train) + ',' + str(mean_bb_err_train) + ',' + str(loss_val) + ',' + str(acc_val) + ',' + str(mean_bb_err_val) + '\n')
         
         # Save trained model
         if (i + 1) % save_every == 0:

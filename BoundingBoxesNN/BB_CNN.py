@@ -20,8 +20,8 @@ class BB_CNN:
 
 	def __init__(self, kernel_size = [3], kernel_stride = [1], num_filters = [4],
 			  pool_size = [2], pool_stride = [2], hidden_dim = [100], dropout = 0.5, 
-			  weight_decay = 1e-4, weight_decay_bb = 1e-2, weight_scale = 0.001,
-			  loss_bb_weight = 0.5, file_name = None):
+			  weight_decay = 1e-4, weight_decay_bb = 0., weight_scale = 0.001,
+			  loss_bb_weight = 1., file_name = None):
 		"""
 		Initialize the bounding boxes CNN by storing its characteristics
 		:param kernel_size: list of kernel sizes; all kernels are quadratic
@@ -44,7 +44,7 @@ class BB_CNN:
 		self.dropout = dropout
 		self.weight_decay = weight_decay
 		self.weight_decay_bb = weight_decay_bb
-		self.weight_scale = 0.001
+		self.weight_scale = weight_scale
 		self.loss_bb_weight = loss_bb_weight
 		self.var_dict = {}
 		
@@ -105,9 +105,8 @@ class BB_CNN:
 		self.score_prob = tf.reshape(score_prob, [-1])
 		self.pred_prob = tf.sigmoid(self.score_prob)
 		pos = tf.map_fn(lambda x: tf.minimum(tf.nn.relu(x), tf.constant(1.)), score_pos)
-		size = tf.minimum(tf.exp(score_size), 1. - pos)
+		size = tf.minimum(tf.nn.relu(score_size), 1. - pos)
 		self.pred_bb = tf.concat([pos, size], 1)
-		return (self.pred_bb, self.pred_prob)
 	
 	
 	def loss(self, target_prob, target_bb):
@@ -121,7 +120,7 @@ class BB_CNN:
 		weight_sum = tf.reduce_sum(target_prob)
 		abs_diff = tf.abs(self.score_bb - target_bb)
 		abs_diff_lt_1 = tf.less(abs_diff, 1)
-		loss_bb = tf.cond(tf.greater(weight_sum, 0), lambda: tf.reduce_sum(target_prob * tf.reduce_sum(tf.where(abs_diff_lt_1, 0.5 * tf.square(abs_diff), abs_diff - 0.5), 1)) / tf.reduce_sum(target_prob), lambda: 0.)
+		loss_bb = tf.cond(tf.greater(weight_sum, 0), lambda: tf.reduce_sum(target_prob * tf.reduce_sum(tf.where(abs_diff_lt_1, 0.5 * tf.square(abs_diff), abs_diff - 0.5), 1)) / weight_sum, lambda: 0.)
 		# Classification loss
 		loss_prob = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=target_prob, logits=self.score_prob))
 		# Regularization loss
