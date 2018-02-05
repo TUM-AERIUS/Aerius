@@ -1,4 +1,11 @@
 # Aerius
+
 This is the main repository of project Aerius - self-driving car implementation.
 
-Run playing.py to see how the car can drive with the network, which I've trained for 10 minutes on a Macbook Pro.
+BoundingBoxesNN -- network for trouser localization.
+
+Reinforcement -- DQN agent.
+
+The respective folders contain more detailed readme files.
+
+Run Reinforcement/playing.py to see how the car can drive with the network.
