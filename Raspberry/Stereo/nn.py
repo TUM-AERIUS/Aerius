@@ -32,12 +32,12 @@ def neural_net(num_sensors, params):
 
     # Summaries
 
-    # tf.summary.histogram('loss', loss)
+    tf.summary.histogram('loss', loss)
 
     # training
 
     trainer = tf.train.AdamOptimizer(learning_rate=0.0001)
-    update = trainer.minimize(loss)
+    update  = trainer.minimize(loss)
 
     # prediction
 
@@ -48,8 +48,7 @@ def neural_net(num_sensors, params):
 
     # initialize session
 
-    # init = tf.global_variables_initializer()
-    init = tf.initialize_all_variables() #(global_variables())
+    init = tf.global_variables_initializer()
 
     session = tf.Session()
 
