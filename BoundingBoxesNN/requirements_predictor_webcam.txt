@@ -109,7 +109,7 @@ python-qt-binding==0.3.3
 python-snappy==0.5
 pytz==2014.10
 pyxdg==0.25
-PyYAML==3.11
+PyYAML==5.4
 pyzmq==16.0.2
 qt-dotgraph==0.3.8
 qt-gui==0.3.8
