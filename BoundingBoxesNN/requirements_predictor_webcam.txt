@@ -206,7 +206,7 @@ Twisted==16.0.0
 txaio==1.0.0
 txsocksx==0.0.0
 unity-lens-photos==1.0
-urllib3==1.13.1
+urllib3==1.26.5
 virtualenv==15.0.1
 wcwidth==0.1.7
 Werkzeug==0.12.2
