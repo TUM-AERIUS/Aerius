@@ -187,7 +187,7 @@ smach==2.0.1
 smach-ros==2.0.1
 smclib==1.8.1
 subprocess32==3.2.7
-tensorflow==1.4.0
+tensorflow==2.5.1
 tensorflow-tensorboard==0.4.0rc3
 terminado==0.6
 testpath==0.3.1
