@@ -42,7 +42,7 @@ genlisp==0.4.16
 genmsg==0.5.9
 gennodejs==2.0.1
 genpy==0.6.7
-html5lib==0.9999999
+html5lib==0.99999999
 idna==2.0
 image-geometry==1.12.7
 interactive-markers==1.11.3
