@@ -57,7 +57,7 @@ jupyter-client==5.0.1
 jupyter-console==5.1.0
 jupyter-core==4.3.0
 laser-geometry==1.6.4
-lxml==3.8.0
+lxml==4.9.1
 lz4==0.7.0
 Markdown==2.6.9
 MarkupSafe==1.0
