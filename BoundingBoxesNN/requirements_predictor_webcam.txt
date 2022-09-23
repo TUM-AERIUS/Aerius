@@ -88,7 +88,7 @@ Pillow==4.1.1
 pkg-resources==0.0.0
 pluginlib==1.11.2
 prompt-toolkit==1.0.14
-protobuf==3.5.0
+protobuf==3.18.3
 psutil==3.4.2
 ptyprocess==0.5
 pyasn1==0.1.9
